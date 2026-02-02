@@ -441,26 +441,23 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             }}
             QTabWidget {{
                 border: 0px;
-                 background: {palette['tab_selected']};
+                background: {palette['tab_bar_bg']};
             }}
             QToolButton, QPushButton {{
                 background: {palette['button_bg']};
-                 border-top: 0px;
                 border: 1px solid {palette['button_border']};
                 border-radius: 8px;
-                 top: 0px;
-                 margin-top: -1px;
+                padding: 6px 12px;
             }}
             QToolButton#NavButton {{
-                 background: {palette['tab_selected']};
+                background: transparent;
                 border: none;
                 padding: 4px;
             }}
             QToolButton#NavButton::menu-indicator {{
                 image: none;
                 width: 0px;
-                 border-top: 0px;
-                 background: {palette['tab_selected']};
+            }}
             QToolButton#NavButton:hover {{
                 background: {palette['button_hover']};
                 border-radius: 8px;
