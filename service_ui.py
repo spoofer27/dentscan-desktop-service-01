@@ -14,7 +14,7 @@ PORT = service_config.SERVICE_API_PORT
 API_BASE = f"http://{HOST}:{PORT}"
 API_HOST = HOST
 API_PORT = PORT
-API_SCRIPT = os.path.join(os.path.dirname(__file__), "service_api.py")
+API_SCRIPT = os.path.join(os.path.dirname(__file__), "services", "service_api.py")
 
 
 class WorkerSignals(QtCore.QObject):

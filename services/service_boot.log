@@ -81,3 +81,10 @@ PID: 11956
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 FolderMonitor started successfully
+
+Startup: DDS01
+Timestamp: 2026-02-03 01:29:22
+PID: 9436
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+FolderMonitor started successfully

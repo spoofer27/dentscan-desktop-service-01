@@ -4,3 +4,62 @@
 2026-02-03 00:36:19 - FolderMonitor started. Folder: C:\Users\spoof\Desktop\03-02-2026
 2026-02-03 00:36:19 - Testing Service
 2026-02-03 00:36:29 - Testing Service
+2026-02-03 01:03:14 - Monitor folder ready: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:03:14 - Service CodeIWantToRun is starting...
+2026-02-03 01:03:14 - Monitor folder ready: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:03:14 - FolderMonitor started. Folder: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:03:14 - Testing Service
+2026-02-03 01:03:24 - Testing Service
+2026-02-03 01:03:34 - Testing Service
+2026-02-03 01:03:44 - Testing Service
+2026-02-03 01:03:54 - Testing Service
+2026-02-03 01:04:04 - Testing Service
+2026-02-03 01:29:22 - Monitor folder ready: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:29:22 - Service CodeIWantToRun is starting...
+2026-02-03 01:29:22 - Monitor folder ready: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:29:22 - FolderMonitor started. Folder: C:\Users\spoof\Desktop\03-02-2026
+2026-02-03 01:29:22 - Testing Service
+2026-02-03 01:29:32 - Testing Service
+2026-02-03 01:29:43 - Testing Service
+2026-02-03 01:29:53 - Testing Service
+2026-02-03 01:30:03 - Testing Service
+2026-02-03 01:30:13 - Testing Service
+2026-02-03 01:30:23 - Testing Service
+2026-02-03 01:30:33 - Testing Service
+2026-02-03 01:30:43 - Testing Service
+2026-02-03 01:30:53 - Testing Service
+2026-02-03 01:31:03 - Testing Service
+2026-02-03 01:31:13 - Testing Service
+2026-02-03 01:31:23 - Testing Service
+2026-02-03 01:31:33 - Testing Service
+2026-02-03 01:31:43 - Testing Service
+2026-02-03 01:31:53 - Testing Service
+2026-02-03 01:32:03 - Testing Service
+2026-02-03 01:32:13 - Testing Service
+2026-02-03 01:32:23 - Testing Service
+2026-02-03 01:32:33 - Testing Service
+2026-02-03 01:32:43 - Testing Service
+2026-02-03 01:32:53 - Testing Service
+2026-02-03 01:33:03 - Testing Service
+2026-02-03 01:33:13 - Testing Service
+2026-02-03 01:33:23 - Testing Service
+2026-02-03 01:33:33 - Testing Service
+2026-02-03 01:33:43 - Testing Service
+2026-02-03 01:33:53 - Testing Service
+2026-02-03 01:34:03 - Testing Service
+2026-02-03 01:34:13 - Testing Service
+2026-02-03 01:34:23 - Testing Service
+2026-02-03 01:34:33 - Testing Service
+2026-02-03 01:34:43 - Testing Service
+2026-02-03 01:34:53 - Testing Service
+2026-02-03 01:35:03 - Testing Service
+2026-02-03 01:35:13 - Testing Service
+2026-02-03 01:35:23 - Testing Service
+2026-02-03 01:35:33 - Testing Service
+2026-02-03 01:35:43 - Testing Service
+2026-02-03 01:35:53 - Testing Service
+2026-02-03 01:36:03 - Testing Service
+2026-02-03 01:36:13 - Testing Service
+2026-02-03 01:36:23 - Testing Service
+2026-02-03 01:36:33 - Testing Service
+2026-02-03 01:36:43 - Testing Service
