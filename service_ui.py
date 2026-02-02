@@ -7,7 +7,7 @@ from urllib.error import URLError
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from service_config import SERVICE_NAME
+from services.service_config import SERVICE_NAME
 
 HOST = os.environ.get("SERVICE_API_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SERVICE_API_PORT", "8085"))
@@ -48,7 +48,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
         self.api_process = None
         self.thread_pool = QtCore.QThreadPool.globalInstance()
-        self.is_dark = False
+        self.is_dark = True
 
         self._build_ui()
         self._apply_style()
@@ -68,40 +68,39 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
         self._build_top_nav(root)
         self._build_body(root)
-        self._build_status_bar(root)
+        # self._build_status_bar(root)
 
     def _build_body(self, layout):
         body = QtWidgets.QWidget()
         body.setObjectName("Body")
         body_layout = QtWidgets.QVBoxLayout(body)
-        body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
 
         self.body_stack = QtWidgets.QStackedWidget()
         self.body_stack.setObjectName("BodyStack")
 
         self._build_main_notebook()
-        self._build_settings_notebook()
+        # self._build_settings_notebook()
 
         self.body_stack.addWidget(self.main_notebook)
-        self.body_stack.addWidget(self.settings_notebook)
+        # self.body_stack.addWidget(self.settings_notebook)
         self.body_stack.setCurrentWidget(self.main_notebook)
 
         body_layout.addWidget(self.body_stack)
         layout.addWidget(body, 1)
 
-    def _build_status_bar(self, layout):
-        status = QtWidgets.QWidget()
-        status.setObjectName("StatusBar")
-        status_layout = QtWidgets.QHBoxLayout(status)
-        status_layout.setContentsMargins(12, 8, 12, 8)
+    # def _build_status_bar(self, layout):
+    #     status = QtWidgets.QWidget()
+    #     status.setObjectName("StatusBar")
+    #     status_layout = QtWidgets.QHBoxLayout(status)
+    #     status_layout.setContentsMargins(12, 8, 12, 8)
 
-        self.footer_status = QtWidgets.QLabel("Ready")
-        self.footer_status.setObjectName("Subtle")
-        status_layout.addWidget(self.footer_status)
-        status_layout.addStretch(1)
+    #     self.footer_status = QtWidgets.QLabel("Ready")
+    #     self.footer_status.setObjectName("Subtle")
+    #     status_layout.addWidget(self.footer_status)
+    #     status_layout.addStretch(1)
 
-        layout.addWidget(status)
+    #     layout.addWidget(status)
 
     def _build_top_nav(self, layout):
         header = QtWidgets.QWidget()
@@ -115,21 +114,24 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         nav.setContentsMargins(12, 8, 12, 8)
         nav.setSpacing(0)
 
-        icon_home = self._icon_from_path(os.path.join("res", "icons", "home.svg"))
-        icon_home_dark = self._icon_from_path(os.path.join("res", "icons", "home-dark.svg"))
-        icon_settings = self._icon_from_path(os.path.join("res", "icons", "settings.svg"))
-        icon_settings_dark = self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg"))
+        # icon_home = self._icon_from_path(os.path.join("res", "icons", "home.svg"))
+        # icon_home_dark = self._icon_from_path(os.path.join("res", "icons", "home-dark.svg"))
+        # icon_settings = self._icon_from_path(os.path.join("res", "icons", "settings.svg"))
+        # icon_settings_dark = self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg"))
         self.theme_icon_light = self._icon_from_path(os.path.join("res", "icons", "light.svg"))
         self.theme_icon_dark = self._icon_from_path(os.path.join("res", "icons", "dark.svg"))
 
-        self.home_btn = QtWidgets.QToolButton()
-        self.home_btn.setObjectName("NavButton")
-        self.home_btn.setToolTip("Home")
-        self.home_btn.setIcon(icon_home_dark if self.is_dark else icon_home)
-        self.home_btn.setIconSize(QtCore.QSize(24, 24))
-        self.home_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
-        self.home_btn.clicked.connect(self._show_home)
-        nav.addWidget(self.home_btn)
+        # self.home_btn = QtWidgets.QToolButton()
+        # self.home_btn.setObjectName("NavButton")
+        # self.home_btn.setToolTip("Dentascan Desktop Service Monitoring and Configuration")
+        # self.home_btn.setIcon(icon_home_dark if self.is_dark else icon_home)
+        # self.home_btn.setIconSize(QtCore.QSize(24, 24))
+        # self.home_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
+        # self.home_btn.clicked.connect(self._show_home)
+
+        self.title = QtWidgets.QLabel("Dentascan Service Monitor")
+        self.title.setObjectName("Title")
+        nav.addWidget(self.title)
 
         nav.addStretch(1)
 
@@ -142,19 +144,18 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.theme_btn.clicked.connect(self._toggle_theme)
         nav.addWidget(self.theme_btn)
 
-        self.settings_btn = QtWidgets.QToolButton()
-        self.settings_btn.setObjectName("NavButton")
-        self.settings_btn.setToolTip("Settings")
-        self.settings_btn.setIcon(icon_settings_dark if self.is_dark else icon_settings)
-        self.settings_btn.setIconSize(QtCore.QSize(24, 24))
-        self.settings_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
-        self.settings_btn.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-
-        settings_menu = QtWidgets.QMenu(self)
+        # self.settings_btn = QtWidgets.QToolButton()
+        # self.settings_btn.setObjectName("NavButton")
+        # self.settings_btn.setToolTip("Settings")
+        # self.settings_btn.setIcon(icon_settings_dark if self.is_dark else icon_settings)
+        # self.settings_btn.setIconSize(QtCore.QSize(24, 24))
+        # self.settings_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
+        # self.settings_btn.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        # settings_menu = QtWidgets.QMenu(self)
         # services_menu = settings_menu.addMenu("Services")
-        settings_menu.addAction("Services", self._show_services)
-        self.settings_btn.setMenu(settings_menu)
-        nav.addWidget(self.settings_btn)
+        # settings_menu.addAction("Services", self._show_services)
+        # self.settings_btn.setMenu(settings_menu)
+        # nav.addWidget(self.settings_btn)
 
         header_layout.addWidget(nav_container)
         layout.addWidget(header)
@@ -171,14 +172,18 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.main_notebook.setObjectName("MainNotebook")
         self.main_notebook.setDocumentMode(True)
         self.main_notebook.setTabPosition(QtWidgets.QTabWidget.North)
+        self.main_notebook.setContentsMargins(5, 5, 5, 5)
 
-        self.monitor_tab = QtWidgets.QWidget()
-        self.archiver_tab = QtWidgets.QWidget()
-        self.uploader_tab = QtWidgets.QWidget()
+        self.status_tab = QtWidgets.QWidget()
+        self.status_tab.setContentsMargins(5, 5, 5, 5)
+        self.conf_tab = QtWidgets.QWidget()
+        self.conf_tab.setContentsMargins(5, 5, 5, 5)
+        self._build_service_monitor(self.status_tab)
+        # self.uploader_tab = QtWidgets.QWidget()
 
-        self.main_notebook.addTab(self.monitor_tab, "Monitor")
-        self.main_notebook.addTab(self.archiver_tab, "Archiver")
-        self.main_notebook.addTab(self.uploader_tab, "Uploader")
+        self.main_notebook.addTab(self.status_tab, "Status")
+        self.main_notebook.addTab(self.conf_tab, "Configuration")
+        # self.main_notebook.addTab(self.uploader_tab, "Uploader")
 
     def _build_settings_notebook(self):
         self.settings_notebook = QtWidgets.QTabWidget()
@@ -190,7 +195,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.settings_notebook.addTab(self.settings_services_tab, "Services")
 
         services_layout = QtWidgets.QVBoxLayout(self.settings_services_tab)
-        services_layout.setContentsMargins(0, 0, 0, 0)
+        services_layout.setContentsMargins(5, 5, 5, 5)
         services_layout.setSpacing(0)
 
         self.services_notebook = QtWidgets.QTabWidget()
@@ -270,7 +275,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
     def _show_home(self):
         self.body_stack.setCurrentWidget(self.main_notebook)
-        self.main_notebook.setCurrentWidget(self.monitor_tab)
+        self.main_notebook.setCurrentWidget(self.status_tab)
 
     def _show_services(self):
         self.body_stack.setCurrentWidget(self.settings_notebook)
@@ -369,8 +374,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             self.theme_btn.setIcon(self.theme_icon_dark if self.is_dark else self.theme_icon_light)
 
         if self.is_dark:
-            self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home-dark.svg")))  
-            self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg")))
+            # self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home-dark.svg")))  
+            # self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg")))
             palette = {
                 "window_bg": "#111827",
                 "text": "#e2e8f0",
@@ -391,8 +396,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 "menu_hover": "#1f2937",
             }
         else:
-            self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home.svg")))  
-            self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings.svg")))
+            # self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home.svg")))  
+            # self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings.svg")))
             palette = {
                 "window_bg": "#f5f7fb",
                 "text": "#1f2937",
@@ -489,11 +494,13 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 border: 0px;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
+                margin-top: 0px;
                 padding: 8px 16px;
                 margin-right: 4px;
             }}
             QTabBar::tab:selected {{
                 background: {palette['tab_selected']};
+                margin-top: 0px;
             }}
             QLabel#Title {{
                 font-size: 18pt;

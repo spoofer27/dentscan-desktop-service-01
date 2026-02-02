@@ -1,0 +1,39 @@
+
+Startup: DDS01
+Timestamp: 2026-02-02 17:54:49
+PID: 12704
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+Service error: No module named 'CodeIWantToRun'
+
+Startup: DDS01
+Timestamp: 2026-02-02 17:54:55
+PID: 6832
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+Service error: No module named 'CodeIWantToRun'
+
+Startup: DDS01
+Timestamp: 2026-02-02 17:55:11
+PID: 8400
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+Service error: No module named 'CodeIWantToRun'
+
+Startup: DDS01
+Timestamp: 2026-02-02 17:55:49
+PID: 3964
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-02 18:42:45
+PID: 10680
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-02 18:43:32
+PID: 18192
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services

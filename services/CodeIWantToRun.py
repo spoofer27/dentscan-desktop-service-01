@@ -26,6 +26,7 @@ def write_to_log(message):
     logger.info(message)
 
 def main(stop_event=None):
+    print("Service CodeIWantToRun is starting...")
     while True:
         write_to_log(log_message)
         if stop_event is None:
