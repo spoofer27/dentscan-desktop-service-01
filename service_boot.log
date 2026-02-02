@@ -1,0 +1,22 @@
+
+Startup: TestUploaderService
+Timestamp: 2026-01-31 19:53:32
+PID: 14972
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: C:\Users\spoof\Desktop\test\test
+Worker thread started
+Worker thread stopped
+
+Startup: TestUploaderService
+Timestamp: 2026-01-31 19:53:55
+PID: 20540
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: C:\Users\spoof\Desktop\test\test
+Worker thread started
+Worker thread stopped
+
+Startup: TestUploaderService
+Timestamp: 2026-01-31 20:08:43
+PID: 14048
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: C:\Users\spoof\Desktop\test\test
