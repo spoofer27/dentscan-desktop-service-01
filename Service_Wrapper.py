@@ -7,10 +7,12 @@ import win32serviceutil
 import threading
 import time
 
+from service_config import SERVICE_NAME
+
 class MyService(win32serviceutil.ServiceFramework):
-    _svc_name_ = "TestUploaderService"
-    _svc_display_name_ = "Test Uploader Service"
-    _svc_description_ = "Testing Uploader Service"
+    _svc_name_ = SERVICE_NAME
+    _svc_display_name_ = "Dentascan Desktop Service 01"
+    _svc_description_ = "Dentascan Desktop Service 01 for basic background processing tasks."
     _svc_type_ = win32service.SERVICE_AUTO_START
 
     # Use one of the following (optional):

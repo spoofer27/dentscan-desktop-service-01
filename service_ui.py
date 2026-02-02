@@ -8,9 +8,8 @@ from urllib import request
 from urllib.error import URLError
 import subprocess
 import sys
+from service_config import SERVICE_NAME
 
-
-SERVICE_NAME = os.environ.get("SERVICE_NAME", "TestUploaderService")
 HOST = os.environ.get("SERVICE_API_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SERVICE_API_PORT", "8085"))
 API_BASE = f"http://{HOST}:{PORT}"
@@ -39,7 +38,11 @@ class ServiceMonitorApp(tk.Tk):
         title.pack(anchor="w")
 
         sub = ttk.Label(container, text=f"API: {API_BASE}")
-        sub.pack(anchor="w", pady=(4, 12))
+        sub.pack(anchor="w", pady=(4, 2))
+
+        self.service_name_var = tk.StringVar(value=SERVICE_NAME)
+        service_name_label = ttk.Label(container, text=f"Configured Service: {self.service_name_var.get()}")
+        service_name_label.pack(anchor="w", pady=(0, 12))
 
         status_frame = ttk.Frame(container)
         status_frame.pack(fill=tk.X)
@@ -146,6 +149,8 @@ class ServiceMonitorApp(tk.Tk):
                     self.api_state_var.set("Connected")
                     self._set_api_dot("green")
                     self.service_state_var.set(payload.get("state", "Unknown"))
+                    if payload.get("service"):
+                        self.service_name_var.set(payload.get("service"))
                     if self.api_process is not None and self.api_process.poll() is None:
                         self.api_process_var.set("Running")
                     elif self.api_process is not None and self.api_process.poll() is not None:
@@ -155,7 +160,8 @@ class ServiceMonitorApp(tk.Tk):
                     if payload.get("ok"):
                         self.message_var.set("Status OK")
                     else:
-                        self.message_var.set(f"Error: {payload.get('error', 'Unknown')}")
+                        service_name = payload.get("service") or self.service_name_var.get()
+                        self.message_var.set(f"Error: {payload.get('error', 'Unknown')} (Service: {service_name})")
                 else:
                     if payload and payload.get("ok"):
                         self.message_var.set("Action OK")

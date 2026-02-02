@@ -47,6 +47,9 @@ python service_ui.py
 ```
 
 Optional environment variables:
-- `SERVICE_NAME` (default: TestUploaderService)
+- `SERVICE_NAME` (default: DDS01)
 - `SERVICE_API_HOST` (default: 127.0.0.1)
 - `SERVICE_API_PORT` (default: 8085)
+
+Service name configuration:
+- Edit service_config.py to change the default service name used by the service wrapper and local API/UI.

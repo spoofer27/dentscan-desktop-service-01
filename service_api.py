@@ -4,8 +4,7 @@ import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
-
-SERVICE_NAME = os.environ.get("SERVICE_NAME", "TestUploaderService")
+from service_config import SERVICE_NAME
 HOST = os.environ.get("SERVICE_API_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SERVICE_API_PORT", "8085"))
 
