@@ -6,12 +6,15 @@ import tkinter as tk
 from tkinter import ttk
 from urllib import request
 from urllib.error import URLError
+import subprocess
+import sys
 
 
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "TestUploaderService")
 HOST = os.environ.get("SERVICE_API_HOST", "127.0.0.1")
 PORT = int(os.environ.get("SERVICE_API_PORT", "8085"))
 API_BASE = f"http://{HOST}:{PORT}"
+API_SCRIPT = os.path.join(os.path.dirname(__file__), "service_api.py")
 
 
 class ServiceMonitorApp(tk.Tk):
@@ -22,6 +25,7 @@ class ServiceMonitorApp(tk.Tk):
         self.resizable(False, False)
 
         self.queue = queue.Queue()
+        self.api_process = None
 
         self._build_ui()
         self._schedule_poll()
@@ -42,12 +46,19 @@ class ServiceMonitorApp(tk.Tk):
 
         self.service_state_var = tk.StringVar(value="Unknown")
         self.api_state_var = tk.StringVar(value="Disconnected")
+        self.api_process_var = tk.StringVar(value="Not running")
 
         ttk.Label(status_frame, text="Service:").grid(row=0, column=0, sticky="w")
         ttk.Label(status_frame, textvariable=self.service_state_var, width=18).grid(row=0, column=1, sticky="w")
 
         ttk.Label(status_frame, text="UI Connected:").grid(row=1, column=0, sticky="w", pady=(6, 0))
         ttk.Label(status_frame, textvariable=self.api_state_var, width=18).grid(row=1, column=1, sticky="w", pady=(6, 0))
+        self.api_dot = tk.Canvas(status_frame, width=12, height=12, highlightthickness=0)
+        self.api_dot.grid(row=1, column=2, sticky="w", pady=(6, 0))
+        self.api_dot_oval = self.api_dot.create_oval(2, 2, 10, 10, fill="red", outline="")
+
+        ttk.Label(status_frame, text="API Process:").grid(row=2, column=0, sticky="w", pady=(6, 0))
+        ttk.Label(status_frame, textvariable=self.api_process_var, width=18).grid(row=2, column=1, sticky="w", pady=(6, 0))
 
         btn_frame = ttk.Frame(container)
         btn_frame.pack(fill=tk.X, pady=16)
@@ -85,6 +96,37 @@ class ServiceMonitorApp(tk.Tk):
         except Exception as err:
             self.queue.put((path, None, str(err)))
 
+    def _set_api_dot(self, color):
+        self.api_dot.itemconfig(self.api_dot_oval, fill=color)
+
+    def _try_start_api(self):
+        if self.api_process is not None and self.api_process.poll() is None:
+            self.api_process_var.set("Running")
+            return
+
+        if not os.path.exists(API_SCRIPT):
+            self.message_var.set("API script not found")
+            self.api_process_var.set("Missing")
+            return
+
+        try:
+            creationflags = 0
+            if os.name == "nt":
+                creationflags = subprocess.CREATE_NO_WINDOW
+
+            self.api_process = subprocess.Popen(
+                [sys.executable, API_SCRIPT],
+                cwd=os.path.dirname(API_SCRIPT),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creationflags,
+            )
+            self.message_var.set("Starting local API...")
+            self.api_process_var.set("Starting")
+        except Exception as err:
+            self.message_var.set(f"Failed to start API: {err}")
+            self.api_process_var.set("Failed")
+
     def _drain_queue(self):
         try:
             while True:
@@ -92,12 +134,24 @@ class ServiceMonitorApp(tk.Tk):
                 if error:
                     self.api_state_var.set("Disconnected")
                     self.service_state_var.set("Unknown")
+                    self._set_api_dot("red")
                     self.message_var.set(f"API error: {error}")
+                    if self.api_process is None:
+                        self.api_process_var.set("Not running")
+                    if path == "/api/status":
+                        self._try_start_api()
                     continue
 
                 if path == "/api/status":
                     self.api_state_var.set("Connected")
+                    self._set_api_dot("green")
                     self.service_state_var.set(payload.get("state", "Unknown"))
+                    if self.api_process is not None and self.api_process.poll() is None:
+                        self.api_process_var.set("Running")
+                    elif self.api_process is not None and self.api_process.poll() is not None:
+                        self.api_process_var.set("Stopped")
+                    else:
+                        self.api_process_var.set("Running (external)")
                     if payload.get("ok"):
                         self.message_var.set("Status OK")
                     else:
