@@ -1,6 +1,8 @@
 import json
 import os
 import subprocess
+import sys
+import ctypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -17,6 +19,25 @@ def run_sc(args):
 		timeout=10,
 	)
 	return result.returncode, result.stdout, result.stderr
+
+
+def run_wrapper(args):
+	wrapper_path = os.path.join(os.path.dirname(__file__), "Service_Wrapper.py")
+	result = subprocess.run(
+		[sys.executable, wrapper_path] + args,
+		capture_output=True,
+		text=True,
+		timeout=30,
+		cwd=os.path.dirname(wrapper_path),
+	)
+	return result.returncode, result.stdout, result.stderr
+
+
+def is_admin():
+	try:
+		return ctypes.windll.shell32.IsUserAnAdmin() != 0
+	except Exception:
+		return False
 
 
 def parse_state(sc_output):
@@ -77,6 +98,13 @@ class Handler(BaseHTTPRequestHandler):
 
 	def do_POST(self):
 		parsed = urlparse(self.path)
+		if parsed.path == "/api/connect":
+			write_json(self, 200, {"ok": True, "message": "Connected"})
+			return
+
+		if parsed.path == "/api/disconnect":
+			write_json(self, 200, {"ok": True, "message": "Disconnected"})
+			return
 		if parsed.path == "/api/start":
 			code, out, err = run_sc(["start", SERVICE_NAME])
 			payload = {"ok": code == 0, "output": (out or err).strip()}
@@ -103,6 +131,32 @@ class Handler(BaseHTTPRequestHandler):
 
 		if parsed.path == "/api/reconnect":
 			write_json(self, 200, {"ok": True, "message": "UI reconnected"})
+			return
+
+		if parsed.path == "/api/install":
+			# code, out, err = run_wrapper(["install"])
+			code, out, err =  run_sc(["install", SERVICE_NAME])
+			payload = {"ok": code == 0, "output": (out or err).strip()}
+			write_json(self, 200 if code == 0 else 500, payload)
+			return
+
+		if parsed.path == "/api/uninstall":
+			print("Uninstall requested")
+			if not is_admin():
+				print("Uninstall failed: not admin")
+				write_json(self, 403, {"ok": False, "output": "Administrator privileges required"})
+				return
+
+			# code, out, err = run_wrapper(["remove"])
+			stop_code, stop_out, stop_err = run_sc(["stop", SERVICE_NAME])
+			code, out, err = run_sc(["delete", SERVICE_NAME])
+
+			payload = {
+				"ok": code == 0,
+				"stop": (stop_out or stop_err).strip(),
+				"delete": (out or err).strip(),
+			}
+			write_json(self, 200 if code == 0 else 500, payload)
 			return
 
 		self.send_error(404, "Not Found")

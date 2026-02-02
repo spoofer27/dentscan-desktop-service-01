@@ -7,16 +7,18 @@ from urllib.error import URLError
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from services.service_config import SERVICE_NAME
+from services import service_config
 
-HOST = os.environ.get("SERVICE_API_HOST", "127.0.0.1")
-PORT = int(os.environ.get("SERVICE_API_PORT", "8085"))
+HOST = service_config.SERVICE_API_HOST
+PORT = service_config.SERVICE_API_PORT
 API_BASE = f"http://{HOST}:{PORT}"
+API_HOST = HOST
+API_PORT = PORT
 API_SCRIPT = os.path.join(os.path.dirname(__file__), "service_api.py")
 
 
 class WorkerSignals(QtCore.QObject):
-    finished = QtCore.pyqtSignal(str, dict, str)
+    finished = QtCore.pyqtSignal(str, object, str)
 
 
 class RequestWorker(QtCore.QRunnable):
@@ -61,46 +63,24 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
     def _build_ui(self):
         central = QtWidgets.QWidget(self)
         self.setCentralWidget(central)
-
         root = QtWidgets.QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-
         self._build_top_nav(root)
         self._build_body(root)
-        # self._build_status_bar(root)
 
     def _build_body(self, layout):
         body = QtWidgets.QWidget()
         body.setObjectName("Body")
         body_layout = QtWidgets.QVBoxLayout(body)
         body_layout.setSpacing(0)
-
         self.body_stack = QtWidgets.QStackedWidget()
         self.body_stack.setObjectName("BodyStack")
-
         self._build_main_notebook()
-        # self._build_settings_notebook()
-
         self.body_stack.addWidget(self.main_notebook)
-        # self.body_stack.addWidget(self.settings_notebook)
         self.body_stack.setCurrentWidget(self.main_notebook)
-
         body_layout.addWidget(self.body_stack)
         layout.addWidget(body, 1)
-
-    # def _build_status_bar(self, layout):
-    #     status = QtWidgets.QWidget()
-    #     status.setObjectName("StatusBar")
-    #     status_layout = QtWidgets.QHBoxLayout(status)
-    #     status_layout.setContentsMargins(12, 8, 12, 8)
-
-    #     self.footer_status = QtWidgets.QLabel("Ready")
-    #     self.footer_status.setObjectName("Subtle")
-    #     status_layout.addWidget(self.footer_status)
-    #     status_layout.addStretch(1)
-
-    #     layout.addWidget(status)
 
     def _build_top_nav(self, layout):
         header = QtWidgets.QWidget()
@@ -114,25 +94,12 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         nav.setContentsMargins(12, 8, 12, 8)
         nav.setSpacing(0)
 
-        # icon_home = self._icon_from_path(os.path.join("res", "icons", "home.svg"))
-        # icon_home_dark = self._icon_from_path(os.path.join("res", "icons", "home-dark.svg"))
-        # icon_settings = self._icon_from_path(os.path.join("res", "icons", "settings.svg"))
-        # icon_settings_dark = self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg"))
         self.theme_icon_light = self._icon_from_path(os.path.join("res", "icons", "light.svg"))
         self.theme_icon_dark = self._icon_from_path(os.path.join("res", "icons", "dark.svg"))
-
-        # self.home_btn = QtWidgets.QToolButton()
-        # self.home_btn.setObjectName("NavButton")
-        # self.home_btn.setToolTip("Dentascan Desktop Service Monitoring and Configuration")
-        # self.home_btn.setIcon(icon_home_dark if self.is_dark else icon_home)
-        # self.home_btn.setIconSize(QtCore.QSize(24, 24))
-        # self.home_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
-        # self.home_btn.clicked.connect(self._show_home)
 
         self.title = QtWidgets.QLabel("Dentascan Service Monitor")
         self.title.setObjectName("Title")
         nav.addWidget(self.title)
-
         nav.addStretch(1)
 
         self.theme_btn = QtWidgets.QToolButton()
@@ -143,19 +110,6 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.theme_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         self.theme_btn.clicked.connect(self._toggle_theme)
         nav.addWidget(self.theme_btn)
-
-        # self.settings_btn = QtWidgets.QToolButton()
-        # self.settings_btn.setObjectName("NavButton")
-        # self.settings_btn.setToolTip("Settings")
-        # self.settings_btn.setIcon(icon_settings_dark if self.is_dark else icon_settings)
-        # self.settings_btn.setIconSize(QtCore.QSize(24, 24))
-        # self.settings_btn.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
-        # self.settings_btn.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-        # settings_menu = QtWidgets.QMenu(self)
-        # services_menu = settings_menu.addMenu("Services")
-        # settings_menu.addAction("Services", self._show_services)
-        # self.settings_btn.setMenu(settings_menu)
-        # nav.addWidget(self.settings_btn)
 
         header_layout.addWidget(nav_container)
         layout.addWidget(header)
@@ -179,54 +133,66 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.conf_tab = QtWidgets.QWidget()
         self.conf_tab.setContentsMargins(5, 5, 5, 5)
         self._build_service_monitor(self.status_tab)
-        # self.uploader_tab = QtWidgets.QWidget()
+        self._build_configuration_tab(self.conf_tab)
 
         self.main_notebook.addTab(self.status_tab, "Status")
         self.main_notebook.addTab(self.conf_tab, "Configuration")
-        # self.main_notebook.addTab(self.uploader_tab, "Uploader")
 
-    def _build_settings_notebook(self):
-        self.settings_notebook = QtWidgets.QTabWidget()
-        self.settings_notebook.setObjectName("SettingsNotebook")
-        self.settings_notebook.setDocumentMode(True)
-        self.settings_notebook.setTabPosition(QtWidgets.QTabWidget.North)
+    def _build_configuration_tab(self, parent):
+        container = QtWidgets.QVBoxLayout(parent)
+        container.setContentsMargins(16, 16, 16, 16)
+        container.setSpacing(12)
 
-        self.settings_services_tab = QtWidgets.QWidget()
-        self.settings_notebook.addTab(self.settings_services_tab, "Services")
+        title = QtWidgets.QLabel("Service Configuration")
+        title.setObjectName("Title")
+        container.addWidget(title)
 
-        services_layout = QtWidgets.QVBoxLayout(self.settings_services_tab)
-        services_layout.setContentsMargins(5, 5, 5, 5)
-        services_layout.setSpacing(0)
+        form = QtWidgets.QFormLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
 
-        self.services_notebook = QtWidgets.QTabWidget()
-        self.services_notebook.setObjectName("ServicesNotebook")
-        self.services_notebook.setDocumentMode(True)
-        self.services_notebook.setTabPosition(QtWidgets.QTabWidget.North)
+        self.config_service_name = QtWidgets.QLineEdit(service_config.SERVICE_NAME)
+        form.addRow("Service Name:", self.config_service_name)
 
-        self.services_status_tab = QtWidgets.QWidget()
-        self.services_config_tab = QtWidgets.QWidget()
+        self.config_auto_start = QtWidgets.QCheckBox("Enable auto-start")
+        self.config_auto_start.setChecked(service_config.SERVICE_AUTO_START)
+        form.addRow("SERVICE_AUTO_START:", self.config_auto_start)
 
-        self.services_notebook.addTab(self.services_status_tab, "Status")
-        self.services_notebook.addTab(self.services_config_tab, "Configuration")
+        self.config_api_host = QtWidgets.QLineEdit(API_HOST)
+        form.addRow("API Host:", self.config_api_host)
 
-        self._build_service_monitor(self.services_status_tab)
+        self.config_api_port = QtWidgets.QSpinBox()
+        self.config_api_port.setRange(1, 65535)
+        self.config_api_port.setValue(API_PORT)
+        form.addRow("API Port:", self.config_api_port)
 
-        services_layout.addWidget(self.services_notebook)
+        container.addLayout(form)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        btn_row.addStretch(1)
+        self.config_save_btn = QtWidgets.QPushButton("Save")
+        self.config_save_btn.clicked.connect(self._save_config)
+        self.config_reset_btn = QtWidgets.QPushButton("Reset to Default")
+        self.config_reset_btn.clicked.connect(self._reset_config)
+        btn_row.addWidget(self.config_save_btn)
+        btn_row.addWidget(self.config_reset_btn)
+        container.addLayout(btn_row)
+        container.addStretch(1)
 
     def _build_service_monitor(self, parent):
         container = QtWidgets.QVBoxLayout(parent)
         container.setContentsMargins(16, 16, 16, 16)
         container.setSpacing(12)
 
-        title = QtWidgets.QLabel("Service Monitor")
+        title = QtWidgets.QLabel("Service Status")
         title.setObjectName("Title")
         container.addWidget(title)
 
-        sub = QtWidgets.QLabel(f"API: {API_BASE}")
-        sub.setObjectName("Subtle")
-        container.addWidget(sub)
+        # self.api_base_label = QtWidgets.QLabel(f"API: {API_BASE}")
+        # self.api_base_label.setObjectName("Subtle")
+        # container.addWidget(self.api_base_label)
 
-        self.service_name_label = QtWidgets.QLabel(f"Configured Service: {SERVICE_NAME}")
+        self.service_name_label = QtWidgets.QLabel(f"Service Name: {service_config.SERVICE_NAME}")
         container.addWidget(self.service_name_label)
 
         status_grid = QtWidgets.QGridLayout()
@@ -237,31 +203,76 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.api_state_label = QtWidgets.QLabel("Disconnected")
         self.api_process_label = QtWidgets.QLabel("Not running")
 
-        status_grid.addWidget(QtWidgets.QLabel("Service:"), 0, 0)
-        status_grid.addWidget(self.service_state_label, 0, 1)
+        status_grid.addWidget(QtWidgets.QLabel("API Host:"), 0, 0)
+        self.api_host_value_label = QtWidgets.QLabel(f"{API_HOST}")
+        status_grid.addWidget(self.api_host_value_label, 0, 1)
 
-        status_grid.addWidget(QtWidgets.QLabel("UI Connected:"), 1, 0)
-        status_grid.addWidget(self.api_state_label, 1, 1)
-
-        self.api_dot = QtWidgets.QLabel()
-        self.api_dot.setFixedSize(12, 12)
-        self.api_dot.setObjectName("StatusDot")
-        self._set_api_dot("red")
-        status_grid.addWidget(self.api_dot, 1, 2)
+        status_grid.addWidget(QtWidgets.QLabel("API Port:"), 1, 0)
+        self.api_port_value_label = QtWidgets.QLabel(f"{API_PORT}")
+        status_grid.addWidget(self.api_port_value_label, 1, 1)
 
         status_grid.addWidget(QtWidgets.QLabel("API Process:"), 2, 0)
         status_grid.addWidget(self.api_process_label, 2, 1)
 
-        container.addLayout(status_grid)
+        status_grid.addWidget(QtWidgets.QLabel("API Connected:"), 3, 0)
+        status_grid.setRowMinimumHeight(3, 32)
+        api_state_row = QtWidgets.QWidget()
+        api_state_row.setMinimumHeight(32)
+        api_state_layout = QtWidgets.QHBoxLayout(api_state_row)
+        api_state_layout.setContentsMargins(0, 0, 0, 0)
+        api_state_layout.setSpacing(10)
+        api_state_layout.addWidget(self.api_state_label)
 
-        btn_row = QtWidgets.QHBoxLayout()
-        btn_row.setSpacing(8)
-        btn_row.addWidget(self._action_btn("Start", "/api/start"))
-        btn_row.addWidget(self._action_btn("Stop", "/api/stop"))
-        btn_row.addWidget(self._action_btn("Restart", "/api/restart"))
-        btn_row.addWidget(self._action_btn("Reconnect", "/api/reconnect"))
-        btn_row.addStretch(1)
-        container.addLayout(btn_row)
+        self.api_connect_btn = QtWidgets.QPushButton("Connect")
+        self.api_connect_btn.clicked.connect(lambda: self._post_action("/api/connect"))
+        self.api_connect_btn.setMinimumHeight(16)
+        self.api_connect_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        self.api_disconnect_btn = QtWidgets.QPushButton("Disconnect")
+        self.api_disconnect_btn.clicked.connect(lambda: self._post_action("/api/disconnect"))
+        self.api_disconnect_btn.setMinimumHeight(16)
+        self.api_disconnect_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        api_state_layout.addWidget(self.api_connect_btn)
+        api_state_layout.addWidget(self.api_disconnect_btn)
+        api_state_layout.addStretch(1)
+        status_grid.addWidget(api_state_row, 3, 1)
+
+        status_grid.addWidget(QtWidgets.QLabel("Service:"), 4, 0)
+        status_grid.setRowMinimumHeight(4, 32)
+        service_state_row = QtWidgets.QWidget()
+        service_state_row.setMinimumHeight(32)
+        service_state_layout = QtWidgets.QHBoxLayout(service_state_row)
+        service_state_layout.setContentsMargins(0, 0, 0, 0)
+        service_state_layout.setSpacing(10)
+        service_state_layout.addWidget(self.service_state_label)
+
+        self.service_start_btn = QtWidgets.QPushButton("Start")
+        self.service_start_btn.clicked.connect(lambda: self._post_action("/api/start"))
+        self.service_start_btn.setMinimumHeight(16)
+        self.service_start_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+
+        self.service_stop_btn = QtWidgets.QPushButton("Stop")
+        self.service_stop_btn.clicked.connect(lambda: self._post_action("/api/stop"))
+        self.service_stop_btn.setMinimumHeight(16)
+        self.service_stop_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+
+        self.service_install_btn = QtWidgets.QPushButton("Install")
+        self.service_install_btn.clicked.connect(lambda: self._post_action("/api/install"))
+        self.service_install_btn.setMinimumHeight(16)
+        self.service_install_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+
+        self.service_uninstall_btn = QtWidgets.QPushButton("Uninstall")
+        self.service_uninstall_btn.clicked.connect(lambda: self._post_action("/api/uninstall"))
+        self.service_uninstall_btn.setMinimumHeight(16)
+        self.service_uninstall_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+
+        service_state_layout.addWidget(self.service_start_btn)
+        service_state_layout.addWidget(self.service_stop_btn)
+        service_state_layout.addWidget(self.service_install_btn)
+        service_state_layout.addWidget(self.service_uninstall_btn)
+        service_state_layout.addStretch(1)
+        status_grid.addWidget(service_state_row, 4, 1)
+
+        container.addLayout(status_grid)
 
         self.message_label = QtWidgets.QLabel("Waiting for status...")
         self.message_label.setObjectName("Subtle")
@@ -272,14 +283,6 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         btn = QtWidgets.QPushButton(label)
         btn.clicked.connect(lambda: self._post_action(path))
         return btn
-
-    def _show_home(self):
-        self.body_stack.setCurrentWidget(self.main_notebook)
-        self.main_notebook.setCurrentWidget(self.status_tab)
-
-    def _show_services(self):
-        self.body_stack.setCurrentWidget(self.settings_notebook)
-        self.settings_notebook.setCurrentWidget(self.settings_services_tab)
 
     def _toggle_theme(self):
         self.is_dark = not self.is_dark
@@ -296,10 +299,53 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         worker.signals.finished.connect(self._handle_response)
         self.thread_pool.start(worker)
 
-    def _set_api_dot(self, color):
-        self.api_dot.setProperty("status", color)
-        self.api_dot.style().unpolish(self.api_dot)
-        self.api_dot.style().polish(self.api_dot)
+    def _update_api_base(self, host, port):
+        global API_HOST, API_PORT, API_BASE
+        API_HOST = host
+        API_PORT = port
+        API_BASE = f"http://{API_HOST}:{API_PORT}"
+        if hasattr(self, "api_base_label"):
+            self.api_base_label.setText(f"API: {API_BASE}")
+        if hasattr(self, "api_host_value_label"):
+            self.api_host_value_label.setText(str(API_HOST))
+        if hasattr(self, "api_port_value_label"):
+            self.api_port_value_label.setText(str(API_PORT))
+
+    def _save_config(self):
+        name = self.config_service_name.text().strip() or service_config.DEFAULT_SERVICE_NAME
+        auto_start = self.config_auto_start.isChecked()
+        host = self.config_api_host.text().strip() or service_config.DEFAULT_SERVICE_API_HOST
+        port = int(self.config_api_port.value())
+
+        config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
+        with open(config_path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import os\n\n"
+                f"DEFAULT_SERVICE_NAME = {service_config.DEFAULT_SERVICE_NAME!r}\n"
+                f"DEFAULT_SERVICE_AUTO_START = {service_config.DEFAULT_SERVICE_AUTO_START!r}\n"
+                f"DEFAULT_SERVICE_API_HOST = {service_config.DEFAULT_SERVICE_API_HOST!r}\n"
+                f"DEFAULT_SERVICE_API_PORT = {service_config.DEFAULT_SERVICE_API_PORT!r}\n\n"
+                f"SERVICE_NAME = {name!r}\n"
+                f"SERVICE_AUTO_START = {auto_start!r}\n"
+                f"SERVICE_API_HOST = {host!r}\n"
+                f"SERVICE_API_PORT = {port!r}\n"
+            )
+
+        service_config.SERVICE_NAME = name
+        service_config.SERVICE_AUTO_START = auto_start
+        service_config.SERVICE_API_HOST = host
+        service_config.SERVICE_API_PORT = port
+
+        self.service_name_label.setText(f"Service Name: {name}")
+        self._update_api_base(host, port)
+        self.message_label.setText("Configuration saved")
+
+    def _reset_config(self):
+        self.config_service_name.setText(service_config.DEFAULT_SERVICE_NAME)
+        self.config_auto_start.setChecked(service_config.DEFAULT_SERVICE_AUTO_START)
+        self.config_api_host.setText(service_config.DEFAULT_SERVICE_API_HOST)
+        self.config_api_port.setValue(service_config.DEFAULT_SERVICE_API_PORT)
+        self._save_config()
 
     def _try_start_api(self):
         if self.api_process is not None and self.api_process.poll() is None:
@@ -332,9 +378,15 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
     def _handle_response(self, path, payload, error):
         if error:
             self.api_state_label.setText("Disconnected")
+            self.api_state_label.setStyleSheet("color: #ef4444;")
             self.service_state_label.setText("Unknown")
-            self._set_api_dot("red")
+            self.service_state_label.setStyleSheet("color: #f59e0b;")
             self.message_label.setText(f"API error: {error}")
+            self.message_label.setStyleSheet("color: #ef4444;")
+            self.api_connect_btn.setEnabled(True)
+            self.api_disconnect_btn.setEnabled(False)
+            self.service_start_btn.setEnabled(True)
+            self.service_stop_btn.setEnabled(False)
             if self.api_process is None:
                 self.api_process_label.setText("Not running")
             if path == "/api/status":
@@ -343,31 +395,54 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
         if path == "/api/status":
             self.api_state_label.setText("Connected")
-            self._set_api_dot("green")
+            self.api_state_label.setStyleSheet("color: #16a34a;")
+            self.api_connect_btn.setEnabled(False)
+            self.api_disconnect_btn.setEnabled(True)
             self.service_state_label.setText(payload.get("state", "Unknown"))
+            state_text = self.service_state_label.text().strip()
+            state_lower = state_text.lower()
+            if state_text == "Unknown":
+                self.service_state_label.setStyleSheet("color: #f59e0b;")
+                self.service_start_btn.setEnabled(True)
+                self.service_stop_btn.setEnabled(False)
+            elif state_lower in {"stopped", "not running", "failed", "error", "inactive", "stopping"}:
+                self.service_state_label.setStyleSheet("color: #ef4444;")
+                self.service_start_btn.setEnabled(True)
+                self.service_stop_btn.setEnabled(False)
+            else:
+                self.service_state_label.setStyleSheet("color: #16a34a;")
+                self.service_start_btn.setEnabled(False)
+                self.service_stop_btn.setEnabled(True)
             if payload.get("service"):
-                self.service_name_label.setText(f"Configured Service: {payload.get('service')}")
+                self.service_name_label.setText(f"Service Name: {payload.get('service')}")
             if self.api_process is not None and self.api_process.poll() is None:
                 self.api_process_label.setText("Running")
+                self.api_process_label.setStyleSheet("color: #16a34a;")
             elif self.api_process is not None and self.api_process.poll() is not None:
                 self.api_process_label.setText("Stopped")
+                self.api_process_label.setStyleSheet("")
             else:
                 self.api_process_label.setText("Running (external)")
+                self.api_process_label.setStyleSheet("color: #16a34a;")
             if payload.get("ok"):
                 self.message_label.setText("Status OK")
+                self.message_label.setStyleSheet("color: #16a34a;")
             else:
                 service_name = payload.get("service") or self.service_name_label.text()
                 self.message_label.setText(
                     f"Error: {payload.get('error', 'Unknown')} (Service: {service_name})"
                 )
+                self.message_label.setStyleSheet("color: #ef4444;")
         else:
             if payload and payload.get("ok"):
                 self.message_label.setText("Action OK")
+                self.message_label.setStyleSheet("color: #16a34a;")
             else:
                 out = None
                 if payload:
                     out = payload.get("output") or payload.get("message")
                 self.message_label.setText(f"Action failed: {out or 'Unknown'}")
+                self.message_label.setStyleSheet("color: #ef4444;")
 
     def _apply_style(self):
         if hasattr(self, "theme_btn"):
@@ -449,10 +524,12 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 background: {palette['tab_bar_bg']};
             }}
             QToolButton, QPushButton {{
+                font-size: 12pt;
                 background: {palette['button_bg']};
                 border: 1px solid {palette['button_border']};
                 border-radius: 8px;
-                padding: 6px 12px;
+                padding: 3px 20px;
+                min-height: 16px;
             }}
             QToolButton#NavButton {{
                 background: transparent;
