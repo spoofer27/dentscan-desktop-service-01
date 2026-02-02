@@ -4,13 +4,19 @@ from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
 
+from service_config import SERVICE_NAME
+from folder_monitor import FolderMonitor
+
+
 # Creates a log every 10 seconds.
 log_message = "Testing Service"
 
-def write_to_log(message):
+_LOGGER_NAME = "ServiceLog"
+
+def _init_logger():
     log_file_path = Path(__file__).resolve().parent / "log.txt"
 
-    logger = logging.getLogger("ServiceLog")
+    logger = logging.getLogger(_LOGGER_NAME)
     if not logger.handlers:
         handler = RotatingFileHandler(
             log_file_path,
@@ -22,13 +28,19 @@ def write_to_log(message):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
+    return logger
 
-    logger.info(message)
+logger = _init_logger()
 
 def main(stop_event=None):
-    print("Service CodeIWantToRun is starting...")
+    logger.info("Service CodeIWantToRun is starting...")
+    try:
+        folder_path = FolderMonitor.from_config().ensure_today_folder()
+        logger.info("FolderMonitor started. Folder: %s", folder_path)
+    except Exception as exc:
+        logger.warning("FolderMonitor failed to start: %s", exc)
     while True:
-        write_to_log(log_message)
+        logger.info(log_message)
         if stop_event is None:
             time.sleep(10)
             continue

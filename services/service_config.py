@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 DEFAULT_SERVICE_NAME = 'DDS01'
 DEFAULT_SERVICE_AUTO_START = True
@@ -9,3 +10,5 @@ SERVICE_NAME = 'DDS01'
 SERVICE_AUTO_START = True
 SERVICE_API_HOST = '127.0.0.1'
 SERVICE_API_PORT = 8085
+
+SERVICE_ROOT_PATH = r"C:\Users\spoof\Desktop"

@@ -51,6 +51,10 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.api_process = None
         self.thread_pool = QtCore.QThreadPool.globalInstance()
         self.is_dark = True
+        self.log_path = os.path.join(os.path.dirname(__file__), "services", "log.txt")
+        self._log_last_mtime = None
+        self._log_last_size = None
+        self._log_max_lines = 5000
 
         self._build_ui()
         self._apply_style()
@@ -59,6 +63,11 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.poll_timer.setInterval(2000)
         self.poll_timer.timeout.connect(self._poll_status)
         self.poll_timer.start()
+
+        self.log_timer = QtCore.QTimer(self)
+        self.log_timer.setInterval(5000)
+        self.log_timer.timeout.connect(self._refresh_log)
+        self.log_timer.start()
 
     def _build_ui(self):
         central = QtWidgets.QWidget(self)
@@ -132,11 +141,15 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.status_tab.setContentsMargins(5, 5, 5, 5)
         self.conf_tab = QtWidgets.QWidget()
         self.conf_tab.setContentsMargins(5, 5, 5, 5)
+        self.log_tab = QtWidgets.QWidget()
+        self.log_tab.setContentsMargins(5, 5, 5, 5)
         self._build_service_monitor(self.status_tab)
         self._build_configuration_tab(self.conf_tab)
+        self._build_log_tab(self.log_tab)
 
         self.main_notebook.addTab(self.status_tab, "Status")
         self.main_notebook.addTab(self.conf_tab, "Configuration")
+        self.main_notebook.addTab(self.log_tab, "Live Log")
 
     def _build_configuration_tab(self, parent):
         container = QtWidgets.QVBoxLayout(parent)
@@ -187,10 +200,6 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         title = QtWidgets.QLabel("Service Status")
         title.setObjectName("Title")
         container.addWidget(title)
-
-        # self.api_base_label = QtWidgets.QLabel(f"API: {API_BASE}")
-        # self.api_base_label.setObjectName("Subtle")
-        # container.addWidget(self.api_base_label)
 
         self.service_name_label = QtWidgets.QLabel(f"Service Name: {service_config.SERVICE_NAME}")
         container.addWidget(self.service_name_label)
@@ -278,6 +287,27 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.message_label.setObjectName("Subtle")
         container.addWidget(self.message_label)
         container.addStretch(1)
+
+    def _build_log_tab(self, parent):
+        container = QtWidgets.QVBoxLayout(parent)
+        container.setContentsMargins(16, 16, 16, 16)
+        container.setSpacing(12)
+
+        title = QtWidgets.QLabel("Live Log")
+        title.setObjectName("Title")
+        container.addWidget(title)
+
+        self.log_path_label = QtWidgets.QLabel(f"Log file: {self.log_path}")
+        self.log_path_label.setObjectName("Subtle")
+        container.addWidget(self.log_path_label)
+
+        self.log_view = QtWidgets.QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        font = QtGui.QFont("Consolas")
+        font.setStyleHint(QtGui.QFont.Monospace)
+        self.log_view.setFont(font)
+        container.addWidget(self.log_view, 1)
 
     def _action_btn(self, label, path):
         btn = QtWidgets.QPushButton(label)
@@ -609,6 +639,33 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             }}
             """
         )
+
+    def _refresh_log(self):
+        if not os.path.exists(self.log_path):
+            self.log_view.setPlainText("Log file not found.")
+            return
+
+        try:
+            mtime = os.path.getmtime(self.log_path)
+            size = os.path.getsize(self.log_path)
+            if self._log_last_mtime == mtime and self._log_last_size == size:
+                return
+            self._log_last_mtime = mtime
+            self._log_last_size = size
+
+            with open(self.log_path, "r", encoding="utf-8", errors="ignore") as fh:
+                lines = fh.read().splitlines()
+
+            if self._log_max_lines and len(lines) > self._log_max_lines:
+                lines = lines[-self._log_max_lines:]
+
+            lines.reverse()
+            self.log_view.setPlainText("\n".join(lines))
+            cursor = self.log_view.textCursor()
+            cursor.movePosition(QtGui.QTextCursor.Start)
+            self.log_view.setTextCursor(cursor)
+        except Exception as err:
+            self.log_view.setPlainText(f"Failed to read log: {err}")
 
 
 def main():
