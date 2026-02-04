@@ -4,7 +4,10 @@ import subprocess
 import sys
 import ctypes
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
+from collections import deque
+import threading
+import time
 from ctypes import wintypes
 
 from service_config import SERVICE_NAME
@@ -36,6 +39,40 @@ STATE_MAP = {
     SERVICE_PAUSE_PENDING: "PAUSE_PENDING",
     SERVICE_PAUSED: "PAUSED",
 }
+
+# In-memory UI log buffer
+_ui_log_buffer = deque(maxlen=1000)
+_ui_log_lock = threading.Lock()
+_ui_log_next_id = 1
+
+def append_ui_log(message, source=None, timestamp=None):
+    global _ui_log_next_id
+    if not isinstance(message, str):
+        return None
+    ts = timestamp if isinstance(timestamp, (int, float)) else time.time()
+    with _ui_log_lock:
+        entry = {
+            "id": _ui_log_next_id,
+            "message": message,
+            "source": source or "service",
+            "ts": ts,
+        }
+        _ui_log_buffer.appendleft(entry)  # newest-first for easy slicing
+        _ui_log_next_id += 1
+        return entry
+
+def get_ui_logs(since_id=None, limit=200):
+    # Returns newest-first logs, optionally filtered by id
+    with _ui_log_lock:
+        if since_id is None:
+            return list(list(_ui_log_buffer)[:limit])
+        try:
+            sid = int(since_id)
+        except Exception:
+            sid = None
+        if sid is None:
+            return list(list(_ui_log_buffer)[:limit])
+        return [e for e in _ui_log_buffer if e["id"] >= sid][:limit]
 
 class SERVICE_STATUS_PROCESS(ctypes.Structure):
     _fields_ = [
@@ -198,10 +235,47 @@ class Handler(BaseHTTPRequestHandler):
             write_json(self, 200, status)
             return
 
+        if parsed.path == "/api/ui-log":
+            qs = parse_qs(parsed.query or "")
+            since_id = None
+            limit = 200
+            if "since_id" in qs:
+                since_id = qs.get("since_id", [None])[0]
+            if "limit" in qs:
+                try:
+                    limit = int(qs.get("limit", [limit])[0])
+                except Exception:
+                    pass
+            logs = get_ui_logs(since_id=since_id, limit=limit)
+            payload = {"ok": True, "logs": logs}
+            write_json(self, 200, payload)
+            return
+
         self.send_error(404, "Not Found")
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/ui-log":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except Exception:
+                length = 0
+            body = b""
+            if length > 0:
+                body = self.rfile.read(length)
+            try:
+                data = json.loads(body.decode("utf-8")) if body else {}
+            except Exception:
+                data = {}
+            msg = data.get("message")
+            source = data.get("source")
+            ts = data.get("timestamp")
+            entry = append_ui_log(str(msg) if msg is not None else None, source=source, timestamp=ts)
+            if entry is None:
+                write_json(self, 400, {"ok": False, "error": "Invalid message"})
+            else:
+                write_json(self, 200, {"ok": True, "entry": entry})
+            return
         if parsed.path == "/api/connect":
             write_json(self, 200, {"ok": True, "message": "Connected"})
             return
@@ -210,18 +284,32 @@ class Handler(BaseHTTPRequestHandler):
             write_json(self, 200, {"ok": True, "message": "Disconnected"})
             return
         if parsed.path == "/api/start":
+            # Admin privileges are required to control Windows services
+            if not is_admin():
+                write_json(self, 200, {"ok": False, "output": "Administrator privileges required"})
+                return
             code, out, err = run_sc(["start", SERVICE_NAME])
             payload = {"ok": code == 0, "output": (out or err).strip()}
-            write_json(self, 200 if code == 0 else 500, payload)
+            # Always return 200; UI will read ok + output for user-friendly errors
+            write_json(self, 200, payload)
             return
 
         if parsed.path == "/api/stop":
+            # Admin privileges are required to control Windows services
+            if not is_admin():
+                write_json(self, 200, {"ok": False, "output": "Administrator privileges required"})
+                return
             code, out, err = run_sc(["stop", SERVICE_NAME])
             payload = {"ok": code == 0, "output": (out or err).strip()}
-            write_json(self, 200 if code == 0 else 500, payload)
+            # Always return 200; UI will read ok + output for user-friendly errors
+            write_json(self, 200, payload)
             return
 
         if parsed.path == "/api/restart":
+            # Admin privileges are required to control Windows services
+            if not is_admin():
+                write_json(self, 200, {"ok": False, "output": "Administrator privileges required"})
+                return
             stop_code, stop_out, stop_err = run_sc(["stop", SERVICE_NAME])
             start_code, start_out, start_err = run_sc(["start", SERVICE_NAME])
             ok = stop_code == 0 and start_code == 0
@@ -230,7 +318,8 @@ class Handler(BaseHTTPRequestHandler):
                 "stop": (stop_out or stop_err).strip(),
                 "start": (start_out or start_err).strip(),
             }
-            write_json(self, 200 if ok else 500, payload)
+            # Always return 200; UI will surface details via payload
+            write_json(self, 200, payload)
             return
 
         if parsed.path == "/api/reconnect":

@@ -5,6 +5,9 @@ from datetime import datetime
 from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
+import json
+from urllib import request
+from urllib.error import URLError
 
 import service_config
 
@@ -45,5 +48,19 @@ class FolderMonitor:
         today_folder.mkdir(parents=True, exist_ok=True)
 
         logger.info("Monitor folder ready: %s", today_folder)
+        # Best-effort: also send to UI log API
+        try:
+            host = getattr(service_config, "SERVICE_API_HOST", "127.0.0.1")
+            port = int(getattr(service_config, "SERVICE_API_PORT", 8085))
+            url = f"http://{host}:{port}/api/ui-log"
+            data = json.dumps({"message": f"Monitor folder ready: {today_folder}", "source": "FolderMonitor"}).encode("utf-8")
+            req = request.Request(url, data=data, method="POST")
+            req.add_header("Content-Type", "application/json; charset=utf-8")
+            with request.urlopen(req, timeout=0.5) as resp:
+                resp.read(0)
+        except URLError:
+            pass
+        except Exception:
+            pass
 
         return today_folder

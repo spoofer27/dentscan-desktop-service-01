@@ -10,8 +10,19 @@ from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
 
 from services import service_config
 
+class UiLogBus(QtCore.QObject):
+    line = QtCore.pyqtSignal(str)
+
+_ui_log_bus = UiLogBus()
+
 def _ui_log(*args):
-    print("[UI]", *args, flush=True)
+    msg = "[UI] " + " ".join(str(a) for a in args)
+    print(msg, flush=True)
+    try:
+        _ui_log_bus.line.emit(msg)
+    except Exception:
+        # Emitting may fail before Qt app is fully initialized; ignore
+        pass
 
 HOST = service_config.SERVICE_API_HOST
 PORT = service_config.SERVICE_API_PORT
@@ -94,6 +105,9 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         # Setup system tray for minimize-to-tray behavior
         # self._setup_tray()
 
+        # Connect UI log bus to Live Log view
+        _ui_log_bus.line.connect(self._append_ui_log)
+
         self.poll_timer = QtCore.QTimer(self)
         self.poll_timer.setInterval(2000)
         self.poll_timer.timeout.connect(self._poll_status)
@@ -101,10 +115,23 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
         _ui_log("UI initialized; polling every 2000ms; log refresh every 5000ms")
 
+        # Disable file tail by default; show internal UI logs in Live Log
+        self.read_file_log = False
         self.log_timer = QtCore.QTimer(self)
         self.log_timer.setInterval(5000)
-        self.log_timer.timeout.connect(self._refresh_log)
-        self.log_timer.start()
+        if self.read_file_log:
+            self.log_timer.timeout.connect(self._refresh_log)
+            self.log_timer.start()
+        else:
+            if hasattr(self, "log_path_label"):
+                self.log_path_label.setText("Live UI logs + service logs (file tail disabled)")
+
+        # Poll API for service-emitted logs
+        self._api_log_since_id = None
+        self.api_log_timer = QtCore.QTimer(self)
+        self.api_log_timer.setInterval(1500)
+        self.api_log_timer.timeout.connect(self._poll_api_logs)
+        self.api_log_timer.start()
 
     def _setup_single_instance_server(self, server: QtNetwork.QLocalServer):
         self._server = server
@@ -398,6 +425,29 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         btn.clicked.connect(lambda: self._post_action(path))
         return btn
     
+    def _append_ui_log(self, text):
+        # Prepend text so most recent is on top and cap total lines
+        try:
+            cursor = self.log_view.textCursor()
+            cursor.movePosition(QtGui.QTextCursor.Start)
+            cursor.insertText(text + "\n")
+            # Keep view at top to show latest
+            cursor = self.log_view.textCursor()
+            cursor.movePosition(QtGui.QTextCursor.Start)
+            self.log_view.setTextCursor(cursor)
+            # Cap to first N lines (newest at top)
+            if self.log_view.blockCount() > self._log_max_lines:
+                doc_text = self.log_view.document().toPlainText()
+                lines = doc_text.splitlines()
+                if len(lines) > self._log_max_lines:
+                    lines = lines[:self._log_max_lines]
+                    self.log_view.setPlainText("\n".join(lines))
+                    cursor = self.log_view.textCursor()
+                    cursor.movePosition(QtGui.QTextCursor.Start)
+                    self.log_view.setTextCursor(cursor)
+        except Exception:
+            pass
+
     def _toggle_theme(self):
         _ui_log("Theme toggled; dark=", self.is_dark)
         self.is_dark = not self.is_dark
@@ -411,6 +461,16 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
     def _poll_status(self):
         _ui_log("Polling /api/status")
         self._enqueue_request("GET", "/api/status")
+
+    def _poll_api_logs(self):
+        try:
+            path = "/api/ui-log"
+            if self._api_log_since_id is not None:
+                path = f"/api/ui-log?since_id={self._api_log_since_id}"
+            _ui_log("Polling", path)
+            self._enqueue_request("GET", path)
+        except Exception as e:
+            _ui_log("Log poll error:", e)
 
     def _post_action(self, path):
         self._enqueue_request("POST", path)
@@ -561,6 +621,26 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                     f"Error: {payload.get('error', 'Unknown')} (Service: {service_name})"
                 )
                 self.message_label.setStyleSheet("color: #ef4444;")
+        elif path.startswith("/api/ui-log"):
+            try:
+                logs = (payload or {}).get("logs") or []
+                if logs:
+                    # Track the next id as last seen + 1
+                    max_id = max((e.get("id") or 0) for e in logs) if logs else None
+                    if max_id:
+                        self._api_log_since_id = max_id + 1
+                    # Newest-first or whatever order provided
+                    for entry in logs:
+                        src = entry.get("source") or "service"
+                        msg = entry.get("message") or ""
+                        line = f"[API:{src}] {msg}"
+                        self._append_ui_log(line)
+                else:
+                    # On first poll (None), set since_id to 1 to avoid fetching all again
+                    if self._api_log_since_id is None:
+                        self._api_log_since_id = 1
+            except Exception as e:
+                _ui_log("Failed to process api logs:", e)
         else:
             _ui_log("Action result", path, "ok=" if (payload and payload.get("ok")) else "failed",
                     "msg=", (payload.get("output") or payload.get("message")) if payload else None)
@@ -780,6 +860,9 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         QtWidgets.QApplication.instance().quit()
             
     def _refresh_log(self):
+        # Respect mode: skip file tail when internal UI log mode is active
+        if not getattr(self, "read_file_log", False):
+            return
         # _ui_log("Log updated; lines=", len(lines))
         if not os.path.exists(self.log_path):
             self.log_view.setPlainText("Log file not found.")
