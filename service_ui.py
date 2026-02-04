@@ -4,10 +4,14 @@ import subprocess
 import sys
 from urllib import request
 from urllib.error import URLError
+from ctypes import wintypes
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, QtNetwork
 
 from services import service_config
+
+def _ui_log(*args):
+    print("[UI]", *args, flush=True)
 
 HOST = service_config.SERVICE_API_HOST
 PORT = service_config.SERVICE_API_PORT
@@ -15,6 +19,27 @@ API_BASE = f"http://{HOST}:{PORT}"
 API_HOST = HOST
 API_PORT = PORT
 API_SCRIPT = os.path.join(os.path.dirname(__file__), "services", "service_api.py")
+
+# Single-instance server name for UI
+UI_SERVER_NAME = "DentascanServiceUI"
+
+def _reexec_with_pythonw_if_needed():
+    # If launched with python.exe on Windows, re-exec using pythonw.exe to avoid a console window
+    if os.name == "nt" and sys.executable.lower().endswith("python.exe") and not os.environ.get("DSCAN_PYTHONW"):
+        pythonw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+        if os.path.exists(pythonw):
+            env = dict(os.environ)
+            env["DSCAN_PYTHONW"] = "1"
+            creationflags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+            subprocess.Popen(
+                [pythonw, os.path.abspath(__file__), *sys.argv[1:]],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=creationflags,
+                env=env,
+            )
+            sys.exit(0)
 
 
 class WorkerSignals(QtCore.QObject):
@@ -32,21 +57,28 @@ class RequestWorker(QtCore.QRunnable):
         payload = None
         error = None
         try:
+            _ui_log("HTTP", self.method, self.path, "->", API_BASE + self.path)
             req = request.Request(API_BASE + self.path, method=self.method)
             with request.urlopen(req, timeout=3) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
+                raw = resp.read().decode("utf-8")
+                _ui_log("HTTP response", self.path, "status:", getattr(resp, "status", "?"), "len:", len(raw))
+                payload = json.loads(raw)
         except URLError as err:
             error = str(err)
+            _ui_log("HTTP error", self.path, ":", error)
         except Exception as err:
             error = str(err)
+            _ui_log("HTTP exception", self.path, ":", error)
         self.signals.finished.emit(self.path, payload, error)
 
 
 class ServiceMonitorApp(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Service Monitor")
-        self.setFixedSize(720, 480)
+        # Consistent window title to aid external detection (if needed)
+        self.setWindowTitle("Dentascan Service UI")
+        # Allow window resizing
+        self.resize(720, 480)
 
         self.api_process = None
         self.thread_pool = QtCore.QThreadPool.globalInstance()
@@ -59,15 +91,77 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self._build_ui()
         self._apply_style()
 
+        # Setup system tray for minimize-to-tray behavior
+        self._setup_tray()
+
         self.poll_timer = QtCore.QTimer(self)
         self.poll_timer.setInterval(2000)
         self.poll_timer.timeout.connect(self._poll_status)
         self.poll_timer.start()
 
+        _ui_log("UI initialized; polling every 2000ms; log refresh every 5000ms")
+
         self.log_timer = QtCore.QTimer(self)
         self.log_timer.setInterval(5000)
         self.log_timer.timeout.connect(self._refresh_log)
         self.log_timer.start()
+
+    def _setup_single_instance_server(self, server: QtNetwork.QLocalServer):
+        self._server = server
+        self._server.newConnection.connect(self._on_server_new_connection)
+        _ui_log("Single-instance server connected")
+
+    def _on_server_new_connection(self):
+        _ui_log("New local connection")
+        conn = self._server.nextPendingConnection()
+        if not conn:
+            return
+        def handle():
+            try:
+                data = bytes(conn.readAll()).strip()
+                if b"SHOW" in data:
+                    _ui_log("SHOW command received from secondary process")
+                    self._restore_from_tray()
+            finally:
+                conn.close()
+        conn.readyRead.connect(handle)
+
+    def _tray_icon(self):
+        # Single normal Windows icon from system style (rasterized)
+        base_icon = self.style().standardIcon(QtWidgets.QStyle.SP_ComputerIcon)
+        pixmap = base_icon.pixmap(24, 24)
+        return QtGui.QIcon(pixmap)
+
+    def _setup_tray(self):
+        if not QtWidgets.QSystemTrayIcon.isSystemTrayAvailable():
+            self.message_label.setText("System tray not available")
+            return
+
+        # Set window icon as well to keep consistent
+        self.setWindowIcon(self._tray_icon())
+
+        self.tray = QtWidgets.QSystemTrayIcon(self._tray_icon(), self)
+        self.tray.setToolTip("Dentascan Service Monitor")
+        # Keep menu and actions referenced to avoid garbage collection
+        self._tray_menu = QtWidgets.QMenu()
+        self._tray_action_show = self._tray_menu.addAction("Show")
+        self._tray_action_quit = self._tray_menu.addAction("Quit")
+        self._tray_action_show.triggered.connect(self._restore_from_tray)
+        self._tray_action_quit.triggered.connect(QtWidgets.QApplication.instance().quit)
+        self.tray.setContextMenu(self._tray_menu)
+        self.tray.activated.connect(self._on_tray_activated)
+        self.tray.show()
+        _ui_log("Tray icon ready")
+
+    def _on_tray_activated(self, reason):
+        _ui_log("Tray activated; reason:", reason)
+        if reason in (QtWidgets.QSystemTrayIcon.Trigger, QtWidgets.QSystemTrayIcon.DoubleClick):
+            self._restore_from_tray()
+
+    def _restore_from_tray(self):
+        _ui_log("Restoring from tray")
+        self.showNormal()
+        self.activateWindow()
 
     def _build_ui(self):
         central = QtWidgets.QWidget(self)
@@ -303,10 +397,17 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         return btn
 
     def _toggle_theme(self):
+        _ui_log("Theme toggled; dark=", self.is_dark)
         self.is_dark = not self.is_dark
         self._apply_style()
+        # Update tray icon when theme changes
+        if hasattr(self, "tray") and self.tray is not None:
+            new_icon = self._tray_icon()
+            self.tray.setIcon(new_icon)
+            self.setWindowIcon(new_icon)
 
     def _poll_status(self):
+        _ui_log("Polling /api/status")
         self._enqueue_request("GET", "/api/status")
 
     def _post_action(self, path):
@@ -322,6 +423,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         API_HOST = host
         API_PORT = port
         API_BASE = f"http://{API_HOST}:{API_PORT}"
+        _ui_log("API base updated to", API_BASE)
         if hasattr(self, "api_base_label"):
             self.api_base_label.setText(f"API: {API_BASE}")
         if hasattr(self, "api_host_value_label"):
@@ -334,7 +436,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         auto_start = self.config_auto_start.isChecked()
         host = self.config_api_host.text().strip() or service_config.DEFAULT_SERVICE_API_HOST
         port = int(self.config_api_port.value())
-
+        _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
         config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
         with open(config_path, "w", encoding="utf-8") as fh:
             fh.write(
@@ -359,6 +461,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.message_label.setText("Configuration saved")
 
     def _reset_config(self):
+        _ui_log("Reset config to defaults")
         self.config_service_name.setText(service_config.DEFAULT_SERVICE_NAME)
         self.config_auto_start.setChecked(service_config.DEFAULT_SERVICE_AUTO_START)
         self.config_api_host.setText(service_config.DEFAULT_SERVICE_API_HOST)
@@ -367,12 +470,11 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
     def _try_start_api(self):
         if self.api_process is not None and self.api_process.poll() is None:
-            self.api_process_label.setText("Running")
+            _ui_log("API process already running; pid:", self.api_process.pid)
             return
 
         if not os.path.exists(API_SCRIPT):
-            self.message_label.setText("API script not found")
-            self.api_process_label.setText("Missing")
+            _ui_log("API script missing at", API_SCRIPT)
             return
 
         try:
@@ -387,14 +489,14 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 stderr=subprocess.DEVNULL,
                 creationflags=creationflags,
             )
-            self.message_label.setText("Starting local API...")
-            self.api_process_label.setText("Starting")
+            _ui_log("Started API process pid:", self.api_process.pid, "flags:", creationflags)
         except Exception as err:
-            self.message_label.setText(f"Failed to start API: {err}")
-            self.api_process_label.setText("Failed")
+            _ui_log("Failed to start API:", err)
 
     def _handle_response(self, path, payload, error):
+        _ui_log("Handle response for", path, "error:" if error else "ok")
         if error:
+            _ui_log("API unreachable; will try start if status poll")
             self.api_state_label.setText("Disconnected")
             self.api_state_label.setStyleSheet("color: #ef4444;")
             self.service_state_label.setText("Unknown")
@@ -412,6 +514,12 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             return
 
         if path == "/api/status":
+            _ui_log("Status:",
+                    "api=Connected",
+                    "service=", payload.get("service"),
+                    "state=", payload.get("state"),
+                    "running=", payload.get("state","").upper()=="RUNNING")
+            
             self.api_state_label.setText("Connected")
             self.api_state_label.setStyleSheet("color: #16a34a;")
             self.api_connect_btn.setEnabled(False)
@@ -452,6 +560,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 )
                 self.message_label.setStyleSheet("color: #ef4444;")
         else:
+            _ui_log("Action result", path, "ok=" if (payload and payload.get("ok")) else "failed",
+                    "msg=", (payload.get("output") or payload.get("message")) if payload else None)
             if payload and payload.get("ok"):
                 self.message_label.setText("Action OK")
                 self.message_label.setStyleSheet("color: #16a34a;")
@@ -628,7 +738,24 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             """
         )
 
+    def closeEvent(self, event):
+        # Close button minimizes to tray; keep app alive
+        _ui_log("Close requested; minimizing to tray")
+        event.ignore()
+        self.hide()
+        if hasattr(self, "tray") and self.tray is not None:
+            try:
+                self.tray.showMessage(
+                    "Dentascan Service Monitor",
+                    "App is running in tray.",
+                    QtWidgets.QSystemTrayIcon.Information,
+                    2000,
+                )
+            except Exception:
+                pass
+
     def _refresh_log(self):
+        # _ui_log("Log updated; lines=", len(lines))
         if not os.path.exists(self.log_path):
             self.log_view.setPlainText("Log file not found.")
             return
@@ -647,19 +774,58 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             if self._log_max_lines and len(lines) > self._log_max_lines:
                 lines = lines[-self._log_max_lines:]
 
+            # Log after lines are prepared
+            _ui_log("Log updated; lines=", len(lines))
+
             lines.reverse()
             self.log_view.setPlainText("\n".join(lines))
             cursor = self.log_view.textCursor()
             cursor.movePosition(QtGui.QTextCursor.Start)
             self.log_view.setTextCursor(cursor)
         except Exception as err:
+            _ui_log("Failed to read log:", err)
             self.log_view.setPlainText(f"Failed to read log: {err}")
 
 
 def main():
+    _ui_log("Starting Dentascan Service UI")
+    _ui_log("Python:", sys.executable, "Args:", sys.argv)
     app = QtWidgets.QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
+
+    socket = QtNetwork.QLocalSocket()
+    _ui_log("Checking existing UI instance...")
+    socket.connectToServer(UI_SERVER_NAME)
+    if socket.waitForConnected(200):
+        _ui_log("Existing instance detected; forwarding SHOW flag" if "--show" in sys.argv else "Existing instance detected; exiting")
+        try:
+            if "--show" in sys.argv:
+                socket.write(b"SHOW")
+                socket.flush()
+                socket.waitForBytesWritten(200)
+        except Exception as e:
+            _ui_log("Error forwarding to instance:", e)
+        finally:
+            socket.disconnectFromServer()
+        sys.exit(0)
+
+    try:
+        QtNetwork.QLocalServer.removeServer(UI_SERVER_NAME)
+    except Exception:
+        pass
+    server = QtNetwork.QLocalServer()
+    server.listen(UI_SERVER_NAME)
+    _ui_log("LocalServer listening as", UI_SERVER_NAME)
+
     window = ServiceMonitorApp()
-    window.show()
+    window._setup_single_instance_server(server)
+
+    if "--hidden" in sys.argv:
+        _ui_log("Launching hidden (--hidden)")
+        window.hide()
+    else:
+        _ui_log("Showing main window")
+        window.show()
     sys.exit(app.exec_())
 
 
