@@ -63,22 +63,6 @@ class MyService(win32serviceutil.ServiceFramework):
                 log_file.write(f"Working directory: {os.path.dirname(__file__)}\n")
         except Exception:
             pass
-
-        try:
-            FolderMonitor.from_config().ensure_today_folder()
-            try:
-                log_path = os.path.join(os.path.dirname(__file__), "service_boot.log")
-                with open(log_path, "a", encoding="utf-8") as log_file:
-                    log_file.write("FolderMonitor started successfully\n")
-            except Exception:
-                pass
-        except Exception as exc:
-            try:
-                log_path = os.path.join(os.path.dirname(__file__), "service_boot.log")
-                with open(log_path, "a", encoding="utf-8") as log_file:
-                    log_file.write(f"FolderMonitor failed to start: {exc}\n")
-            except Exception:
-                pass
         
         import CodeIWantToRun
         self.worker_thread = threading.Thread(

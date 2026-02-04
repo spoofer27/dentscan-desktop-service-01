@@ -1,90 +1,27 @@
 
 Startup: DDS01
-Timestamp: 2026-02-02 22:35:32
-PID: 8576
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 22:37:23
-PID: 10176
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 22:47:39
-PID: 7312
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 22:57:03
-PID: 21916
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 23:09:15
-PID: 11612
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 23:47:09
-PID: 19208
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-02 23:56:31
-PID: 7840
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-03 00:01:00
-PID: 6476
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-03 00:16:35
-PID: 17024
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-FolderMonitor failed to start: name 'service_config' is not defined
-
-Startup: DDS01
-Timestamp: 2026-02-03 00:19:09
-PID: 13640
+Timestamp: 2026-02-04 12:05:43
+PID: 8560
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 FolderMonitor started successfully
 
 Startup: DDS01
-Timestamp: 2026-02-03 00:25:11
-PID: 11688
+Timestamp: 2026-02-04 12:06:22
+PID: 5680
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 FolderMonitor started successfully
 
 Startup: DDS01
-Timestamp: 2026-02-03 00:26:06
-PID: 1560
+Timestamp: 2026-02-04 12:06:37
+PID: 16152
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 FolderMonitor started successfully
 
 Startup: DDS01
-Timestamp: 2026-02-03 00:36:19
-PID: 11956
+Timestamp: 2026-02-04 12:10:35
+PID: 6044
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-FolderMonitor started successfully
-
-Startup: DDS01
-Timestamp: 2026-02-03 01:29:22
-PID: 9436
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-FolderMonitor started successfully
