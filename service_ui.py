@@ -68,18 +68,18 @@ class RequestWorker(QtCore.QRunnable):
         payload = None
         error = None
         try:
-            _ui_log("HTTP", self.method, self.path, "->", API_BASE + self.path)
+            # _ui_log("HTTP", self.method, self.path, "->", API_BASE + self.path)
             req = request.Request(API_BASE + self.path, method=self.method)
             with request.urlopen(req, timeout=3) as resp:
                 raw = resp.read().decode("utf-8")
-                _ui_log("HTTP response", self.path, "status:", getattr(resp, "status", "?"), "len:", len(raw))
+                # _ui_log("HTTP response", self.path, "status:", getattr(resp, "status", "?"), "len:", len(raw))
                 payload = json.loads(raw)
         except URLError as err:
             error = str(err)
-            _ui_log("HTTP error", self.path, ":", error)
+            # _ui_log("HTTP error", self.path, ":", error)
         except Exception as err:
             error = str(err)
-            _ui_log("HTTP exception", self.path, ":", error)
+            # _ui_log("HTTP exception", self.path, ":", error)
         self.signals.finished.emit(self.path, payload, error)
 
 
@@ -136,10 +136,10 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
     def _setup_single_instance_server(self, server: QtNetwork.QLocalServer):
         self._server = server
         self._server.newConnection.connect(self._on_server_new_connection)
-        _ui_log("Single-instance server connected")
+        # _ui_log("Single-instance server connected")
 
     def _on_server_new_connection(self):
-        _ui_log("New local connection")
+        # _ui_log("New local connection")
         conn = self._server.nextPendingConnection()
         if not conn:
             return
@@ -147,7 +147,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             try:
                 data = bytes(conn.readAll()).strip()
                 if b"SHOW" in data:
-                    _ui_log("SHOW command received from secondary process")
+                    # _ui_log("SHOW command received from secondary process")
                     self.showNormal()
                     self.activateWindow()
                     self._restore_from_tray()
@@ -180,15 +180,15 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.tray.setContextMenu(self._tray_menu)
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
-        _ui_log("Tray icon ready")
+        # _ui_log("Tray icon ready")
 
     def _on_tray_activated(self, reason):
-        _ui_log("Tray activated; reason:", reason)
+        # _ui_log("Tray activated; reason:", reason)
         if reason in (QtWidgets.QSystemTrayIcon.Trigger, QtWidgets.QSystemTrayIcon.DoubleClick):
             self._restore_from_tray()
 
     def _restore_from_tray(self):
-        _ui_log("Restoring from tray")
+        # _ui_log("Restoring from tray")
         self.showNormal()
         self.activateWindow()
 
@@ -287,20 +287,42 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         form.setHorizontalSpacing(12)
         form.setVerticalSpacing(10)
 
-        self.config_service_name = QtWidgets.QLineEdit(service_config.SERVICE_NAME)
-        form.addRow("Service Name:", self.config_service_name)
+        # Removed Service Name from Configuration tab
 
         self.config_auto_start = QtWidgets.QCheckBox("Enable auto-start")
         self.config_auto_start.setChecked(service_config.SERVICE_AUTO_START)
-        form.addRow("SERVICE_AUTO_START:", self.config_auto_start)
+        form.addRow("Service AutoStart :", self.config_auto_start)
 
         self.config_api_host = QtWidgets.QLineEdit(API_HOST)
-        form.addRow("API Host:", self.config_api_host)
+        form.addRow("API Host :", self.config_api_host)
 
         self.config_api_port = QtWidgets.QSpinBox()
         self.config_api_port.setRange(1, 65535)
         self.config_api_port.setValue(API_PORT)
-        form.addRow("API Port:", self.config_api_port)
+        form.addRow("API Port :", self.config_api_port)
+
+        # Separator below API Port
+        sep = QtWidgets.QFrame()
+        sep.setFrameShape(QtWidgets.QFrame.HLine)
+        sep.setFrameShadow(QtWidgets.QFrame.Sunken)
+        form.addRow(sep)
+
+        # Local Path selector bound to SERVICE_ROOT_PATH
+        self.config_local_path = QtWidgets.QLineEdit(service_config.SERVICE_ROOT_PATH)
+        browse_btn = QtWidgets.QPushButton("Browse")
+        def do_browse():
+            start_dir = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
+            directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Local Path", start_dir)
+            if directory:
+                self.config_local_path.setText(directory)
+        browse_btn.clicked.connect(do_browse)
+        path_row = QtWidgets.QWidget()
+        path_row_layout = QtWidgets.QHBoxLayout(path_row)
+        path_row_layout.setContentsMargins(0, 0, 0, 0)
+        path_row_layout.setSpacing(8)
+        path_row_layout.addWidget(self.config_local_path, 1)
+        path_row_layout.addWidget(browse_btn)
+        form.addRow("Local Path :", path_row)
 
         container.addLayout(form)
 
@@ -449,7 +471,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             pass
 
     def _toggle_theme(self):
-        _ui_log("Theme toggled; dark=", self.is_dark)
+        # _ui_log("Theme toggled; dark=", self.is_dark)
         self.is_dark = not self.is_dark
         self._apply_style()
         # Update tray icon when theme changes
@@ -459,7 +481,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             self.setWindowIcon(new_icon)
 
     def _poll_status(self):
-        _ui_log("Polling /api/status")
+        # _ui_log("Polling /api/status")
         self._enqueue_request("GET", "/api/status")
 
     def _poll_api_logs(self):
@@ -467,7 +489,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             path = "/api/ui-log"
             if self._api_log_since_id is not None:
                 path = f"/api/ui-log?since_id={self._api_log_since_id}"
-            _ui_log("Polling", path)
+            # _ui_log("Polling", path)
             self._enqueue_request("GET", path)
         except Exception as e:
             _ui_log("Log poll error:", e)
@@ -485,7 +507,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         API_HOST = host
         API_PORT = port
         API_BASE = f"http://{API_HOST}:{API_PORT}"
-        _ui_log("API base updated to", API_BASE)
+        # _ui_log("API base updated to", API_BASE)
         if hasattr(self, "api_base_label"):
             self.api_base_label.setText(f"API: {API_BASE}")
         if hasattr(self, "api_host_value_label"):
@@ -494,49 +516,50 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             self.api_port_value_label.setText(str(API_PORT))
 
     def _save_config(self):
-        name = self.config_service_name.text().strip() or service_config.DEFAULT_SERVICE_NAME
         auto_start = self.config_auto_start.isChecked()
         host = self.config_api_host.text().strip() or service_config.DEFAULT_SERVICE_API_HOST
         port = int(self.config_api_port.value())
-        _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
+        local_path = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
+        # _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
         config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
         with open(config_path, "w", encoding="utf-8") as fh:
             fh.write(
-                "import os\n\n"
+                "import os\nfrom pathlib import Path\n\n"
                 f"DEFAULT_SERVICE_NAME = {service_config.DEFAULT_SERVICE_NAME!r}\n"
                 f"DEFAULT_SERVICE_AUTO_START = {service_config.DEFAULT_SERVICE_AUTO_START!r}\n"
                 f"DEFAULT_SERVICE_API_HOST = {service_config.DEFAULT_SERVICE_API_HOST!r}\n"
-                f"DEFAULT_SERVICE_API_PORT = {service_config.DEFAULT_SERVICE_API_PORT!r}\n\n"
-                f"SERVICE_NAME = {name!r}\n"
+                f"DEFAULT_SERVICE_API_PORT = {service_config.DEFAULT_SERVICE_API_PORT!r}\n"
+                f"DEFAULT_SERVICE_ROOT_PATH = {service_config.DEFAULT_SERVICE_ROOT_PATH!r}\n\n"
+                f"SERVICE_NAME = {service_config.SERVICE_NAME!r}\n"
                 f"SERVICE_AUTO_START = {auto_start!r}\n"
                 f"SERVICE_API_HOST = {host!r}\n"
                 f"SERVICE_API_PORT = {port!r}\n"
+                f"SERVICE_ROOT_PATH = {local_path!r}\n"
             )
 
-        service_config.SERVICE_NAME = name
         service_config.SERVICE_AUTO_START = auto_start
         service_config.SERVICE_API_HOST = host
         service_config.SERVICE_API_PORT = port
+        service_config.SERVICE_ROOT_PATH = local_path
 
-        self.service_name_label.setText(f"Service Name: {name}")
         self._update_api_base(host, port)
         self.message_label.setText("Configuration saved")
 
     def _reset_config(self):
-        _ui_log("Reset config to defaults")
-        self.config_service_name.setText(service_config.DEFAULT_SERVICE_NAME)
+        # _ui_log("Reset config to defaults")
         self.config_auto_start.setChecked(service_config.DEFAULT_SERVICE_AUTO_START)
         self.config_api_host.setText(service_config.DEFAULT_SERVICE_API_HOST)
         self.config_api_port.setValue(service_config.DEFAULT_SERVICE_API_PORT)
+        self.config_local_path.setText(service_config.DEFAULT_SERVICE_ROOT_PATH)
         self._save_config()
 
     def _try_start_api(self):
         if self.api_process is not None and self.api_process.poll() is None:
-            _ui_log("API process already running; pid:", self.api_process.pid)
+            # _ui_log("API process already running; pid:", self.api_process.pid)
             return
 
         if not os.path.exists(API_SCRIPT):
-            _ui_log("API script missing at", API_SCRIPT)
+            # _ui_log("API script missing at", API_SCRIPT)
             return
 
         try:
@@ -551,14 +574,14 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 stderr=subprocess.DEVNULL,
                 creationflags=creationflags,
             )
-            _ui_log("Started API process pid:", self.api_process.pid, "flags:", creationflags)
+            # _ui_log("Started API process pid:", self.api_process.pid, "flags:", creationflags)
         except Exception as err:
             _ui_log("Failed to start API:", err)
 
     def _handle_response(self, path, payload, error):
-        _ui_log("Handle response for", path, "error:" if error else "ok")
+        # _ui_log("Handle response for", path, "error:" if error else "ok")
         if error:
-            _ui_log("API unreachable; will try start if status poll")
+            # _ui_log("API unreachable; will try start if status poll")
             self.api_state_label.setText("Disconnected")
             self.api_state_label.setStyleSheet("color: #ef4444;")
             self.service_state_label.setText("Unknown")
@@ -576,11 +599,11 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             return
 
         if path == "/api/status":
-            _ui_log("Status:",
-                    "api=Connected",
-                    "service=", payload.get("service"),
-                    "state=", payload.get("state"),
-                    "running=", payload.get("state","").upper()=="RUNNING")
+            # _ui_log("Status:",
+            #         "api=Connected",
+            #         "service=", payload.get("service"),
+            #         "state=", payload.get("state"),
+            #         "running=", payload.get("state","").upper()=="RUNNING")
             
             self.api_state_label.setText("Connected")
             self.api_state_label.setStyleSheet("color: #16a34a;")
@@ -838,7 +861,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
 
     def closeEvent(self, event):
         # Close button exits the application normally
-        _ui_log("Close requested; exiting application")
+        # _ui_log("Close requested; exiting application")
         try:
             # Clean up tray icon if present
             if hasattr(self, "tray") and self.tray is not None:
@@ -883,7 +906,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 lines = lines[-self._log_max_lines:]
 
             # Log after lines are prepared
-            _ui_log("Log updated; lines=", len(lines))
+            # _ui_log("Log updated; lines=", len(lines))
 
             lines.reverse()
             self.log_view.setPlainText("\n".join(lines))
@@ -891,21 +914,21 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             cursor.movePosition(QtGui.QTextCursor.Start)
             self.log_view.setTextCursor(cursor)
         except Exception as err:
-            _ui_log("Failed to read log:", err)
+            # _ui_log("Failed to read log:", err)
             self.log_view.setPlainText(f"Failed to read log: {err}")
 
 
 def main():
-    _ui_log("Starting Dentascan Service UI")
-    _ui_log("Python:", sys.executable, "Args:", sys.argv)
+    # _ui_log("Starting Dentascan Service UI")
+    # _ui_log("Python:", sys.executable, "Args:", sys.argv)
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
     socket = QtNetwork.QLocalSocket()
-    _ui_log("Checking existing UI instance...")
+    # _ui_log("Checking existing UI instance...")
     socket.connectToServer(UI_SERVER_NAME)
     if socket.waitForConnected(200):
-        _ui_log("Existing instance detected; forwarding SHOW flag" if "--show" in sys.argv else "Existing instance detected; exiting")
+        # _ui_log("Existing instance detected; forwarding SHOW flag" if "--show" in sys.argv else "Existing instance detected; exiting")
         try:
             if "--show" in sys.argv:
                 socket.write(b"SHOW")
@@ -923,16 +946,16 @@ def main():
         pass
     server = QtNetwork.QLocalServer()
     server.listen(UI_SERVER_NAME)
-    _ui_log("LocalServer listening as", UI_SERVER_NAME)
+    # _ui_log("LocalServer listening as", UI_SERVER_NAME)
 
     window = ServiceMonitorApp()
     window._setup_single_instance_server(server)
 
     if "--hidden" in sys.argv:
-        _ui_log("Launching hidden (--hidden)")
+        # _ui_log("Launching hidden (--hidden)")
         window.hide()
     else:
-        _ui_log("Showing main window")
+        # _ui_log("Showing main window")
         window.show()
     sys.exit(app.exec_())
 
