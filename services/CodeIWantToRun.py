@@ -34,12 +34,22 @@ logger = _init_logger()
 
 def main(stop_event=None):
     logger.info("Service CodeIWantToRun is starting...")
+    monitor = None
     try:
-        folder_path = FolderMonitor.from_config().ensure_today_folder()
+        monitor = FolderMonitor.from_config()
+        folder_path = monitor.ensure_today_folder()
         logger.info("FolderMonitor started. Folder: %s", folder_path)
     except Exception as exc:
         logger.warning("FolderMonitor failed to start: %s", exc)
     while True:
+        # Run folder monitor every 10 seconds
+        if monitor is not None:
+            try:
+                folder_path = monitor.ensure_today_folder()
+                logger.info("FolderMonitor check OK: %s", folder_path)
+            except Exception as exc:
+                logger.warning("FolderMonitor check failed: %s", exc)
+
         logger.info(log_message)
         if stop_event is None:
             time.sleep(10)

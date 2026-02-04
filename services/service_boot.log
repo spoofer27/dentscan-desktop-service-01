@@ -25,3 +25,9 @@ Timestamp: 2026-02-04 12:10:35
 PID: 6044
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-04 12:18:08
+PID: 6568
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services

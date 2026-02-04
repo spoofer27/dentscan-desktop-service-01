@@ -264,20 +264,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.service_stop_btn.setMinimumHeight(16)
         self.service_stop_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
 
-        self.service_install_btn = QtWidgets.QPushButton("Install")
-        self.service_install_btn.clicked.connect(lambda: self._post_action("/api/install"))
-        self.service_install_btn.setMinimumHeight(16)
-        self.service_install_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
-
-        self.service_uninstall_btn = QtWidgets.QPushButton("Uninstall")
-        self.service_uninstall_btn.clicked.connect(lambda: self._post_action("/api/uninstall"))
-        self.service_uninstall_btn.setMinimumHeight(16)
-        self.service_uninstall_btn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
-
         service_state_layout.addWidget(self.service_start_btn)
         service_state_layout.addWidget(self.service_stop_btn)
-        service_state_layout.addWidget(self.service_install_btn)
-        service_state_layout.addWidget(self.service_uninstall_btn)
         service_state_layout.addStretch(1)
         status_grid.addWidget(service_state_row, 4, 1)
 

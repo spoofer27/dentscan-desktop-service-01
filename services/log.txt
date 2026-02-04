@@ -56,3 +56,135 @@
 2026-02-04 12:12:15 - Testing Service
 2026-02-04 12:12:25 - Testing Service
 2026-02-04 12:12:35 - Testing Service
+2026-02-04 12:12:45 - Testing Service
+2026-02-04 12:12:55 - Testing Service
+2026-02-04 12:13:05 - Testing Service
+2026-02-04 12:13:15 - Testing Service
+2026-02-04 12:13:25 - Testing Service
+2026-02-04 12:13:35 - Testing Service
+2026-02-04 12:13:45 - Testing Service
+2026-02-04 12:13:55 - Testing Service
+2026-02-04 12:14:05 - Testing Service
+2026-02-04 12:14:15 - Testing Service
+2026-02-04 12:14:25 - Testing Service
+2026-02-04 12:14:35 - Testing Service
+2026-02-04 12:14:45 - Testing Service
+2026-02-04 12:14:55 - Testing Service
+2026-02-04 12:15:05 - Testing Service
+2026-02-04 12:15:15 - Testing Service
+2026-02-04 12:15:25 - Testing Service
+2026-02-04 12:15:35 - Testing Service
+2026-02-04 12:15:45 - Testing Service
+2026-02-04 12:15:55 - Testing Service
+2026-02-04 12:16:05 - Testing Service
+2026-02-04 12:16:15 - Testing Service
+2026-02-04 12:16:25 - Testing Service
+2026-02-04 12:16:35 - Testing Service
+2026-02-04 12:16:45 - Testing Service
+2026-02-04 12:16:55 - Testing Service
+2026-02-04 12:17:05 - Testing Service
+2026-02-04 12:17:15 - Testing Service
+2026-02-04 12:17:25 - Testing Service
+2026-02-04 12:17:35 - Testing Service
+2026-02-04 12:17:45 - Testing Service
+2026-02-04 12:17:55 - Testing Service
+2026-02-04 12:18:05 - Testing Service
+2026-02-04 12:18:08 - Service CodeIWantToRun is starting...
+2026-02-04 12:18:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:08 - FolderMonitor started. Folder: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:08 - Testing Service
+2026-02-04 12:18:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:18 - Testing Service
+2026-02-04 12:18:28 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:28 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:28 - Testing Service
+2026-02-04 12:18:38 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:38 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:38 - Testing Service
+2026-02-04 12:18:48 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:48 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:48 - Testing Service
+2026-02-04 12:18:58 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:58 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:18:58 - Testing Service
+2026-02-04 12:19:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:08 - Testing Service
+2026-02-04 12:19:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:18 - Testing Service
+2026-02-04 12:19:28 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:28 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:28 - Testing Service
+2026-02-04 12:19:38 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:38 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:38 - Testing Service
+2026-02-04 12:19:48 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:48 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:48 - Testing Service
+2026-02-04 12:19:58 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:58 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:19:58 - Testing Service
+2026-02-04 12:20:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:08 - Testing Service
+2026-02-04 12:20:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:18 - Testing Service
+2026-02-04 12:20:28 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:28 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:28 - Testing Service
+2026-02-04 12:20:38 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:38 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:38 - Testing Service
+2026-02-04 12:20:48 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:48 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:48 - Testing Service
+2026-02-04 12:20:58 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:58 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:20:58 - Testing Service
+2026-02-04 12:21:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:08 - Testing Service
+2026-02-04 12:21:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:18 - Testing Service
+2026-02-04 12:21:28 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:28 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:28 - Testing Service
+2026-02-04 12:21:38 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:38 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:38 - Testing Service
+2026-02-04 12:21:48 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:48 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:48 - Testing Service
+2026-02-04 12:21:58 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:58 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:21:58 - Testing Service
+2026-02-04 12:22:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:08 - Testing Service
+2026-02-04 12:22:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:18 - Testing Service
+2026-02-04 12:22:28 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:28 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:28 - Testing Service
+2026-02-04 12:22:38 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:38 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:38 - Testing Service
+2026-02-04 12:22:48 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:48 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:48 - Testing Service
+2026-02-04 12:22:58 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:58 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:22:58 - Testing Service
+2026-02-04 12:23:08 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:23:08 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:23:08 - Testing Service
+2026-02-04 12:23:18 - Monitor folder ready: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:23:18 - FolderMonitor check OK: C:\Users\spoof\Desktop\04-02-2026
+2026-02-04 12:23:18 - Testing Service
