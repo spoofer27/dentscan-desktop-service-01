@@ -92,7 +92,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self._apply_style()
 
         # Setup system tray for minimize-to-tray behavior
-        self._setup_tray()
+        # self._setup_tray()
 
         self.poll_timer = QtCore.QTimer(self)
         self.poll_timer.setInterval(2000)
@@ -121,6 +121,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 data = bytes(conn.readAll()).strip()
                 if b"SHOW" in data:
                     _ui_log("SHOW command received from secondary process")
+                    self.showNormal()
+                    self.activateWindow()
                     self._restore_from_tray()
             finally:
                 conn.close()
@@ -395,7 +397,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         btn = QtWidgets.QPushButton(label)
         btn.clicked.connect(lambda: self._post_action(path))
         return btn
-
+    
     def _toggle_theme(self):
         _ui_log("Theme toggled; dark=", self.is_dark)
         self.is_dark = not self.is_dark
@@ -738,22 +740,45 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             """
         )
 
-    def closeEvent(self, event):
-        # Close button minimizes to tray; keep app alive
-        _ui_log("Close requested; minimizing to tray")
-        event.ignore()
-        self.hide()
-        if hasattr(self, "tray") and self.tray is not None:
-            try:
-                self.tray.showMessage(
-                    "Dentascan Service Monitor",
-                    "App is running in tray.",
-                    QtWidgets.QSystemTrayIcon.Information,
-                    2000,
-                )
-            except Exception:
-                pass
+    # def closeEvent(self, event):
+    #     # Close button minimizes to tray; keep app alive
+    #     _ui_log("Close requested; minimizing to tray")
+    #     event.ignore()
+    #     self.hide()
+    #     if hasattr(self, "tray") and self.tray is not None:
+    #         try:
+    #             self.tray.showMessage(
+    #                 "Dentascan Service Monitor",
+    #                 "App is running in tray.",
+    #                 QtWidgets.QSystemTrayIcon.Information,
+    #                 2000,
+    #             )
+    #         except Exception:
+    #             pass
 
+    def closeEvent(self, event):
+        # Close button exits the application normally
+        _ui_log("Close requested; exiting application")
+        try:
+            # Clean up tray icon if present
+            if hasattr(self, "tray") and self.tray is not None:
+                self.tray.hide()
+        except Exception:
+            pass
+        try:
+            # Clean up single-instance server if present
+            if hasattr(self, "_server") and self._server is not None:
+                self._server.close()
+                try:
+                    QtNetwork.QLocalServer.removeServer(UI_SERVER_NAME)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Accept the close and quit the app
+        event.accept()
+        QtWidgets.QApplication.instance().quit()
+            
     def _refresh_log(self):
         # _ui_log("Log updated; lines=", len(lines))
         if not os.path.exists(self.log_path):
