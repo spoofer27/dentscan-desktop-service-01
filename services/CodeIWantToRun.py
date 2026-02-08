@@ -12,9 +12,9 @@ from folder_monitor import FolderMonitor
 
 
 # Creates a log every 10 seconds.
-log_message = "Testing Service"
+log_message = "=========== 5 Seconds ============"
 
-_LOGGER_NAME = "ServiceLog"
+_LOGGER_NAME = ""
 
 def _init_logger():
     log_file_path = Path(__file__).resolve().parent / "log.txt"
@@ -64,12 +64,29 @@ def main(stop_event=None):
         logger.warning("FolderMonitor failed to start: %s", exc)
         _post_ui_log(f"FolderMonitor failed to start: {exc}", source="ServiceLog")
     while True:
-        # Run folder monitor every 10 seconds
+        # Run folder monitor every 5 seconds
         if monitor is not None:
             try:
                 folder_path = monitor.ensure_today_folder()
                 logger.info("FolderMonitor check OK: %s", folder_path)
                 _post_ui_log(f"FolderMonitor check OK: {folder_path}", source="ServiceLog")
+                case_count, cases = monitor.find_cases()
+                now = time.localtime()
+                date_str = time.strftime("%d-%m-%Y", now)
+                hour = time.strftime("%I", now).lstrip("0") or "12"
+                minute = time.strftime("%M", now)
+                suffix = time.strftime("%p", now).lower()
+                header_time = f"{hour}.{minute}{suffix}"
+                _post_ui_log(f"{date_str} {header_time} - Found {case_count} Cases", source="FolderMonitor")
+                for idx, case in enumerate(cases, start=1):
+                    name = case.get("name", "")
+                    case_date = case.get("date", "")
+                    case_time = case.get("time", "")
+                    case_has_pdf = case.get("has_pdf", False)
+                    case_pdf_count = case.get("pdf_count", 0)
+                    case_has_images = case.get("has_images", False)
+                    case_image_count = case.get("image_count", 0)
+                    _post_ui_log(f"         {idx}- {name} - {case_date} - {case_time} - PDFs: {case_pdf_count} - Images: {case_image_count}", source="FolderMonitor")
             except Exception as exc:
                 logger.warning("FolderMonitor check failed: %s", exc)
                 _post_ui_log(f"FolderMonitor check failed: {exc}", source="ServiceLog")
@@ -77,15 +94,15 @@ def main(stop_event=None):
         logger.info(log_message)
         _post_ui_log(log_message, source="ServiceLog")
         if stop_event is None:
-            time.sleep(10)
+            time.sleep(5)
             continue
 
-        # Wait up to 10s but exit early if stop is requested.
+        # Wait up to 5s but exit early if stop is requested.
         if hasattr(stop_event, "wait"):
-            if stop_event.wait(timeout=10):
+            if stop_event.wait(timeout=5):
                 return
         else:
-            time.sleep(10)
+            time.sleep(5)
 
 
 if __name__ == "__main__":

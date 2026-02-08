@@ -654,10 +654,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                         self._api_log_since_id = max_id + 1
                     # Newest-first or whatever order provided
                     for entry in logs:
-                        src = entry.get("source") or "service"
                         msg = entry.get("message") or ""
-                        line = f"[API:{src}] {msg}"
-                        self._append_ui_log(line)
+                        self._append_ui_log(msg)
                 else:
                     # On first poll (None), set since_id to 1 to avoid fetching all again
                     if self._api_log_since_id is None:
