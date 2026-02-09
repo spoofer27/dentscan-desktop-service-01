@@ -8687,3 +8687,11 @@
 2026-02-09 14:31:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
 2026-02-09 14:31:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
 2026-02-09 14:31:13 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 14:31:15 - =========== 5 Seconds ============
+2026-02-09 14:31:20 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 14:31:20 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 14:31:20 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 14:31:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 14:31:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 14:31:20 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 14:31:21 - =========== 5 Seconds ============
