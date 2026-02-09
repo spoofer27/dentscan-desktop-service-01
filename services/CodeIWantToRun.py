@@ -55,11 +55,16 @@ def main(stop_event=None):
     logger.info("Service CodeIWantToRun is starting...")
     _post_ui_log("Service CodeIWantToRun is starting...", source="ServiceLog")
     monitor = None
+    staging_monitor = None
     try:
         monitor = FolderMonitor.from_config()
         folder_path = monitor.ensure_today_folder()
         logger.info("FolderMonitor started. Folder: %s", folder_path)
         _post_ui_log(f"FolderMonitor started. Folder: {folder_path}", source="ServiceLog")
+        staging_monitor = FolderMonitor.staging_from_config()
+        staging_folder_path = staging_monitor.ensure_today_staging_folder()
+        logger.info("Staging folder ready. Folder: %s", staging_folder_path)
+        _post_ui_log(f"Staging folder ready. Folder: {staging_folder_path}", source="ServiceLog")
     except Exception as exc:
         logger.warning("FolderMonitor failed to start: %s", exc)
         _post_ui_log(f"FolderMonitor failed to start: {exc}", source="ServiceLog")
@@ -70,6 +75,13 @@ def main(stop_event=None):
                 folder_path = monitor.ensure_today_folder()
                 logger.info("FolderMonitor check OK: %s", folder_path)
                 _post_ui_log(f"FolderMonitor check OK: {folder_path}", source="ServiceLog")
+                if staging_monitor is not None:
+                    staging_folder_path = staging_monitor.ensure_today_staging_folder()
+                    logger.info("Staging folder check OK: %s", staging_folder_path)
+                    _post_ui_log(
+                        f"Staging folder check OK: {staging_folder_path}",
+                        source="ServiceLog",
+                    )
                 case_count, cases = monitor.find_cases()
                 now = time.localtime()
                 date_str = time.strftime("%d-%m-%Y", now)
@@ -86,7 +98,16 @@ def main(stop_event=None):
                     case_pdf_count = case.get("pdf_count", 0)
                     case_has_images = case.get("has_images", False)
                     case_image_count = case.get("image_count", 0)
-                    _post_ui_log(f"         {idx}- {name} - {case_date} - {case_time} - PDFs: {case_pdf_count} - Images: {case_image_count}", source="FolderMonitor")
+                    case_has_single_dicom = case.get("has_single_dicom", False)
+                    case_single_dicom_count = case.get("single_dicom_count", 0)
+                    case_has_multiple_dicom = case.get("has_multiple_dicom", False)
+                    case_multiple_dicom_count = case.get("multiple_dicom_count", 0)
+                    case_has_project = case.get("has_project", False)
+                    case_project_count = case.get("project_count", 0)
+                    case_romexis = case.get("romexis", False)
+                    _post_ui_log(f"         {idx}- {name} - {case_date} - {case_time} - PDFs: {case_pdf_count} - IMGs: {case_image_count} - DICOMs: {case_single_dicom_count} - M-DICOMs: {case_multiple_dicom_count} - Projs: {case_project_count} - Rmx: {case_romexis}", source="FolderMonitor")
+                    # _post_ui_log(f"         {idx}- {name} - DICOMs: {case_single_dicom_count} - Projects: {case_project_count}", source="FolderMonitor")
+
             except Exception as exc:
                 logger.warning("FolderMonitor check failed: %s", exc)
                 _post_ui_log(f"FolderMonitor check failed: {exc}", source="ServiceLog")

@@ -307,8 +307,9 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         sep.setFrameShadow(QtWidgets.QFrame.Sunken)
         form.addRow(sep)
 
-        # Local Path selector bound to SERVICE_ROOT_PATH
+        # Local and staging Path selector bound to SERVICE_ROOT_PATH and SERVICE_STAGING_PATH
         self.config_local_path = QtWidgets.QLineEdit(service_config.SERVICE_ROOT_PATH)
+
         browse_btn = QtWidgets.QPushButton("Browse")
         def do_browse():
             start_dir = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
@@ -324,6 +325,23 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         path_row_layout.addWidget(browse_btn)
         form.addRow("Local Path :", path_row)
 
+
+        self.config_staging_path = QtWidgets.QLineEdit(service_config.SERVICE_STAGING_PATH)
+
+        staging_browse_btn = QtWidgets.QPushButton("Browse")
+        def do_browse_staging():
+            start_dir = self.config_staging_path.text().strip() or service_config.DEFAULT_SERVICE_STAGING_PATH
+            directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Staging Path", start_dir)
+            if directory:
+                self.config_staging_path.setText(directory)
+        staging_browse_btn.clicked.connect(do_browse_staging)
+        staging_path_row = QtWidgets.QWidget()
+        staging_path_row_layout = QtWidgets.QHBoxLayout(staging_path_row)
+        staging_path_row_layout.setContentsMargins(0, 0, 0, 0)
+        staging_path_row_layout.setSpacing(8)
+        staging_path_row_layout.addWidget(self.config_staging_path, 1)
+        staging_path_row_layout.addWidget(staging_browse_btn)
+        form.addRow("Staging Path :", staging_path_row)
         container.addLayout(form)
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -520,6 +538,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         host = self.config_api_host.text().strip() or service_config.DEFAULT_SERVICE_API_HOST
         port = int(self.config_api_port.value())
         local_path = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
+        staging_path = self.config_staging_path.text().strip() or service_config.DEFAULT_SERVICE_STAGING_PATH
         # _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
         config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
         with open(config_path, "w", encoding="utf-8") as fh:
@@ -529,18 +548,21 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 f"DEFAULT_SERVICE_AUTO_START = {service_config.DEFAULT_SERVICE_AUTO_START!r}\n"
                 f"DEFAULT_SERVICE_API_HOST = {service_config.DEFAULT_SERVICE_API_HOST!r}\n"
                 f"DEFAULT_SERVICE_API_PORT = {service_config.DEFAULT_SERVICE_API_PORT!r}\n"
-                f"DEFAULT_SERVICE_ROOT_PATH = {service_config.DEFAULT_SERVICE_ROOT_PATH!r}\n\n"
+                f"DEFAULT_SERVICE_ROOT_PATH = {service_config.DEFAULT_SERVICE_ROOT_PATH!r}\n"
+                f"DEFAULT_SERVICE_STAGING_PATH = {service_config.DEFAULT_SERVICE_STAGING_PATH!r}\n\n"
                 f"SERVICE_NAME = {service_config.SERVICE_NAME!r}\n"
                 f"SERVICE_AUTO_START = {auto_start!r}\n"
                 f"SERVICE_API_HOST = {host!r}\n"
                 f"SERVICE_API_PORT = {port!r}\n"
                 f"SERVICE_ROOT_PATH = {local_path!r}\n"
+                f"SERVICE_STAGING_PATH = {staging_path!r}\n"
             )
 
         service_config.SERVICE_AUTO_START = auto_start
         service_config.SERVICE_API_HOST = host
         service_config.SERVICE_API_PORT = port
         service_config.SERVICE_ROOT_PATH = local_path
+        service_config.SERVICE_STAGING_PATH = staging_path
 
         self._update_api_base(host, port)
         self.message_label.setText("Configuration saved")
@@ -551,6 +573,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.config_api_host.setText(service_config.DEFAULT_SERVICE_API_HOST)
         self.config_api_port.setValue(service_config.DEFAULT_SERVICE_API_PORT)
         self.config_local_path.setText(service_config.DEFAULT_SERVICE_ROOT_PATH)
+        self.config_staging_path.setText(service_config.DEFAULT_SERVICE_STAGING_PATH)
         self._save_config()
 
     def _try_start_api(self):
