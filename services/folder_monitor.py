@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import shutil
 import pydicom
 from pydicom.errors import InvalidDicomError
 from pydicom.misc import is_dicom
@@ -13,6 +14,16 @@ from urllib import request
 from urllib.error import URLError
 
 import service_config
+
+from pydicom.dataset import FileDataset, FileMetaDataset
+from pydicom.encaps import encapsulate
+from pydicom.uid import (
+    ExplicitVRLittleEndian,
+    EncapsulatedPDFStorage,
+    SecondaryCaptureImageStorage,
+    PYDICOM_IMPLEMENTATION_UID,
+    generate_uid,
+)
 
 
 @dataclass(frozen=True)
@@ -101,6 +112,112 @@ class FolderMonitor:
 
         return today_staging_folder
 
+    def _extract_study_info(self, ds) -> dict:
+        return {
+            "study_uid": getattr(ds, "StudyInstanceUID", None),
+            "patient_name": getattr(ds, "PatientName", ""),
+            "patient_id": getattr(ds, "PatientID", ""),
+            "patient_birth_date": getattr(ds, "PatientBirthDate", ""),
+            "patient_sex": getattr(ds, "PatientSex", ""),
+            "study_date": getattr(ds, "StudyDate", ""),
+            "study_time": getattr(ds, "StudyTime", ""),
+            "accession_number": getattr(ds, "AccessionNumber", ""),
+            "study_description": getattr(ds, "StudyDescription", ""),
+        }
+
+    def _build_file_meta(self, sop_class_uid, sop_instance_uid) -> FileMetaDataset:
+        meta = FileMetaDataset()
+        meta.FileMetaInformationVersion = b"\x00\x01"
+        meta.MediaStorageSOPClassUID = sop_class_uid
+        meta.MediaStorageSOPInstanceUID = sop_instance_uid
+        meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        meta.ImplementationClassUID = PYDICOM_IMPLEMENTATION_UID
+        return meta
+
+    def _create_pdf_dicom(self, pdf_path: Path, out_path: Path, study_info: dict):
+        with pdf_path.open("rb") as f:
+            pdf_bytes = f.read()
+
+        sop_instance_uid = generate_uid()
+        file_meta = self._build_file_meta(EncapsulatedPDFStorage, sop_instance_uid)
+        ds = FileDataset(str(out_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+        ds.is_little_endian = True
+        ds.is_implicit_VR = False
+
+        now = datetime.now()
+        ds.SOPClassUID = EncapsulatedPDFStorage
+        ds.SOPInstanceUID = sop_instance_uid
+        ds.StudyInstanceUID = study_info.get("study_uid") or generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.Modality = "DOC"
+        ds.SeriesNumber = 1
+        ds.InstanceNumber = 1
+        ds.ContentDate = now.strftime("%Y%m%d")
+        ds.ContentTime = now.strftime("%H%M%S")
+        ds.MIMETypeOfEncapsulatedDocument = "application/pdf"
+        ds.EncapsulatedDocument = encapsulate([pdf_bytes])
+        ds.EncapsulatedDocumentLength = len(pdf_bytes)
+
+        ds.PatientName = study_info.get("patient_name", "")
+        ds.PatientID = study_info.get("patient_id", "")
+        ds.PatientBirthDate = study_info.get("patient_birth_date", "")
+        ds.PatientSex = study_info.get("patient_sex", "")
+        ds.StudyDate = study_info.get("study_date", "")
+        ds.StudyTime = study_info.get("study_time", "")
+        ds.AccessionNumber = study_info.get("accession_number", "")
+        ds.StudyDescription = study_info.get("study_description", "")
+
+        ds.save_as(out_path, write_like_original=False)
+
+    def _create_image_dicom(self, image_path: Path, out_path: Path, study_info: dict):
+        try:
+            from PIL import Image  # type: ignore[import-not-found]
+        except Exception:
+            return
+
+        image = Image.open(image_path).convert("RGB")
+        pixel_bytes = image.tobytes()
+        rows, cols = image.size[1], image.size[0]
+
+        sop_instance_uid = generate_uid()
+        file_meta = self._build_file_meta(SecondaryCaptureImageStorage, sop_instance_uid)
+        ds = FileDataset(str(out_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+        ds.is_little_endian = True
+        ds.is_implicit_VR = False
+
+        now = datetime.now()
+        ds.SOPClassUID = SecondaryCaptureImageStorage
+        ds.SOPInstanceUID = sop_instance_uid
+        ds.StudyInstanceUID = study_info.get("study_uid") or generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.Modality = "SC"
+        ds.SeriesNumber = 1
+        ds.InstanceNumber = 1
+        ds.ContentDate = now.strftime("%Y%m%d")
+        ds.ContentTime = now.strftime("%H%M%S")
+
+        ds.PatientName = study_info.get("patient_name", "")
+        ds.PatientID = study_info.get("patient_id", "")
+        ds.PatientBirthDate = study_info.get("patient_birth_date", "")
+        ds.PatientSex = study_info.get("patient_sex", "")
+        ds.StudyDate = study_info.get("study_date", "")
+        ds.StudyTime = study_info.get("study_time", "")
+        ds.AccessionNumber = study_info.get("accession_number", "")
+        ds.StudyDescription = study_info.get("study_description", "")
+
+        ds.SamplesPerPixel = 3
+        ds.PhotometricInterpretation = "RGB"
+        ds.PlanarConfiguration = 0
+        ds.Rows = rows
+        ds.Columns = cols
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.HighBit = 7
+        ds.PixelRepresentation = 0
+        ds.PixelData = pixel_bytes
+
+        ds.save_as(out_path, write_like_original=False)
+
     def _format_case_date(self, ts: float) -> str:
         return datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
 
@@ -118,6 +235,7 @@ class FolderMonitor:
         If empty -> not a case.
         Returns (count, cases_list).
         """
+        today_staging_folder = self.ensure_today_staging_folder()
         today_folder_name = datetime.now().strftime(self.date_format)
         today_folder = self.root_path / today_folder_name
         if not today_folder.exists():
@@ -141,6 +259,7 @@ class FolderMonitor:
                 has_contents = any(case.iterdir())
             except Exception:
                 has_contents = False
+                
             if not has_contents:
                 continue
 
@@ -158,6 +277,13 @@ class FolderMonitor:
             IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
             pdf_count = 0
             image_count = 0
+            pdf_files = []
+            image_files = []
+            case_staging_folder = today_staging_folder / case.name
+            attachments_folder = case_staging_folder / "Attachments"
+            dicoms_folder = case_staging_folder / "Dicoms"
+            attachments_folder.mkdir(parents=True, exist_ok=True)
+            dicoms_folder.mkdir(parents=True, exist_ok=True)
             try:
                 stack = [case]
                 while stack:
@@ -180,8 +306,18 @@ class FolderMonitor:
                         ext = item.suffix.lower()
                         if ext in PDF_EXTS:
                             pdf_count += 1
+                            pdf_files.append(item)
+                            try:
+                                shutil.copy2(item, attachments_folder / item.name)
+                            except Exception:
+                                pass
                         elif ext in IMAGE_EXTS:
                             image_count += 1
+                            image_files.append(item)
+                            try:
+                                shutil.copy2(item, attachments_folder / item.name)
+                            except Exception:
+                                pass
 
             except Exception:
                 pdf_count = 0
@@ -195,6 +331,8 @@ class FolderMonitor:
             has_multiple_dicom = False
             has_project = False
             romexis = False
+            sop_uids = set()
+            study_info = None
             try:
                 stack = [case]
                 while stack:
@@ -219,6 +357,15 @@ class FolderMonitor:
                         except InvalidDicomError:
                             continue
 
+                        if study_info is None:
+                            study_info = self._extract_study_info(ds)
+
+                        sop_uid = getattr(ds, "SOPInstanceUID", None)
+                        if sop_uid is not None:
+                            if sop_uid in sop_uids:
+                                continue
+                            sop_uids.add(sop_uid)
+
                         # if item is a project or single dicom
                         number_of_frames = getattr(ds, "NumberOfFrames", None)
                         if number_of_frames is not None:
@@ -234,6 +381,11 @@ class FolderMonitor:
                             # item is multiple dicom (multi-file series)
                             has_multiple_dicom = True
                             multiple_dicom_count += 1
+
+                        try:
+                            shutil.copy2(item, dicoms_folder / item.name)
+                        except Exception:
+                            pass
 
                         # if dicom has romexis tag
                         impl_version = getattr(getattr(ds, "file_meta", None), "ImplementationVersionName", "")
@@ -253,6 +405,30 @@ class FolderMonitor:
             # getting counts
             has_pdf = pdf_count > 0
             has_images = image_count > 0
+            has_any_dicom = has_single_dicom or has_multiple_dicom or has_project
+
+            if pdf_files or image_files:
+                if study_info is None:
+                    study_info = {"study_uid": generate_uid()}
+                elif not study_info.get("study_uid"):
+                    study_info["study_uid"] = generate_uid()
+
+                orthanc_folder = case_staging_folder / "Orthanc"
+                orthanc_folder.mkdir(parents=True, exist_ok=True)
+
+                for pdf_path in pdf_files:
+                    try:
+                        out_path = orthanc_folder / f"{pdf_path.stem} PDF.dcm"
+                        self._create_pdf_dicom(pdf_path, out_path, study_info)
+                    except Exception:
+                        pass
+
+                for image_path in image_files:
+                    try:
+                        out_path = orthanc_folder / f"{image_path.stem} IMG.dcm"
+                        self._create_image_dicom(image_path, out_path, study_info)
+                    except Exception:
+                        pass
 
             cases.append({
                 "name": case.name, 
