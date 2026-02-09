@@ -6,3 +6,4 @@ services\service_boot.log
 
 # Rotated logs
 services\log.txt.*
+services/service_boot.log
