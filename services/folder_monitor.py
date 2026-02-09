@@ -1,5 +1,5 @@
 from __future__ import annotations
-from uploader import OrthancUploader
+# from uploader import OrthancUploader
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -227,12 +227,24 @@ class FolderMonitor:
             raise ValueError("dicom_paths cannot be empty")
 
         # Load all DICOMs
-        datasets = [pydicom.dcmread(p) for p in dicom_paths]
+        try:
+            datasets = [pydicom.dcmread(p) for p in dicom_paths]
+        except Exception as e:
+            self._post_ui_log(f"Failed to read DICOM files: {e}", source="FolderMonitor")
+            raise
 
         # Sort by InstanceNumber if present (important!)
-        datasets.sort(key=lambda d: getattr(d, "InstanceNumber", 0))
+        try:
+            datasets.sort(key=lambda d: getattr(d, "InstanceNumber", 0))
+        except Exception as e:
+            self._post_ui_log(f"Failed to sort DICOM files: {e}", source="FolderMonitor")
+            raise
 
-        first_ds = datasets[0]
+        try:
+            first_ds = datasets[0]
+        except Exception as e:
+            self._post_ui_log(f"Failed to get first DICOM dataset: {e}", source="FolderMonitor")
+            raise
 
         # Stack pixel data into (num_frames, rows, cols)
         
@@ -242,18 +254,34 @@ class FolderMonitor:
             self._post_ui_log(f"Failed to extract pixel data: {e}", source="FolderMonitor")
             raise
 
-        pixel_stack = np.stack(pixel_arrays, axis=0)
+        try:
+            pixel_stack = np.stack(pixel_arrays, axis=0)
+        except Exception as e:
+            self._post_ui_log(f"Failed to stack pixel data: {e}", source="FolderMonitor")
+            raise
 
         # Create new dataset based on first DICOM
-        multi_ds = first_ds.copy()
+        try:
+            multi_ds = first_ds.copy()
+        except Exception as e:
+            self._post_ui_log(f"Failed to copy first DICOM dataset: {e}", source="FolderMonitor")
+            raise
 
         # Update required multi-frame attributes
-        multi_ds.NumberOfFrames = pixel_stack.shape[0]
-        multi_ds.PixelData = pixel_stack.tobytes()
+        try:
+            multi_ds.NumberOfFrames = pixel_stack.shape[0]
+            multi_ds.PixelData = pixel_stack.tobytes()
+        except Exception as e:
+            self._post_ui_log(f"Failed to set multi-frame attributes: {e}", source="FolderMonitor")
+            raise
 
         # Generate new UIDs
-        multi_ds.SOPInstanceUID = generate_uid()
-        multi_ds.file_meta.MediaStorageSOPInstanceUID = multi_ds.SOPInstanceUID
+        try:
+            multi_ds.SOPInstanceUID = generate_uid()
+            multi_ds.file_meta.MediaStorageSOPInstanceUID = multi_ds.SOPInstanceUID
+        except Exception as e:
+            self._post_ui_log(f"Failed to generate new UIDs: {e}", source="FolderMonitor")
+            raise
 
         # Remove single-frame–specific attributes if present
         if "InstanceNumber" in multi_ds:
@@ -290,6 +318,7 @@ class FolderMonitor:
             return
 
         try:
+            from uploader import OrthancUploader
             uploader = OrthancUploader.from_config()
         except Exception as exc:
             self._post_ui_log(

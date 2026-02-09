@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import requests
-
+import json
+from urllib import request
+from urllib.error import URLError
 import service_config
 
 
@@ -28,27 +30,50 @@ class OrthancUploader:
         password = getattr(service_config, "ORTHANC_PASSWORD", "")
         return cls(url, username or None, password or None)
 
+    def _post_ui_log(self, message: str, source: str = "OrthancUploader"):
+        host = getattr(service_config, "SERVICE_API_HOST", "127.0.0.1")
+        port = int(getattr(service_config, "SERVICE_API_PORT", 8085))
+        url = f"http://{host}:{port}/api/ui-log"
+        try:
+            data = json.dumps({"message": message, "source": source}).encode("utf-8")
+            req = request.Request(url, data=data, method="POST")
+            req.add_header("Content-Type", "application/json; charset=utf-8")
+            with request.urlopen(req, timeout=0.5) as resp:
+                resp.read(0)
+        except URLError:
+            pass
+        except Exception:
+            pass
+
     def system_info(self) -> dict:
-        resp = self.session.get(
-            f"{self.base_url}/system",
-            auth=self.auth,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = self.session.get(
+                f"{self.base_url}/system",
+                auth=self.auth,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            self._post_ui_log(f"Orthanc system_info failed: {exc}")
+            raise
 
     def upload_file(self, path: Path) -> dict:
-        with path.open("rb") as handle:
-            data = handle.read()
-        resp = self.session.post(
-            f"{self.base_url}/instances",
-            data=data,
-            headers={"Content-Type": "application/dicom"},
-            auth=self.auth,
-            timeout=self.timeout,
-        )
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            with path.open("rb") as handle:
+                data = handle.read()
+            resp = self.session.post(
+                f"{self.base_url}/instances",
+                data=data,
+                headers={"Content-Type": "application/dicom"},
+                auth=self.auth,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            self._post_ui_log(f"Orthanc upload failed for {path}: {exc}")
+            raise
 
     def upload_folder(self, folder: Path) -> dict:
         if not folder.exists():
@@ -67,5 +92,12 @@ class OrthancUploader:
                 uploaded += 1
             except Exception as exc:
                 failures.append({"path": str(path), "error": str(exc)})
+
+        if failures:
+            self._post_ui_log(
+                f"Orthanc upload completed with {len(failures)} failure(s) out of {len(files)}"
+            )
+        elif files:
+            self._post_ui_log(f"Orthanc upload completed: {uploaded} file(s)")
 
         return {"uploaded": uploaded, "failed": len(failures), "failures": failures}

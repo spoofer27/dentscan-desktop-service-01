@@ -10,3 +10,6 @@ services/service_boot.log
 services/log.txt
 services/service_boot.log
 services/service_boot.log
+services/log.txt
+services/service_boot.log
+*.pyc
