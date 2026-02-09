@@ -16,7 +16,8 @@ from urllib.error import URLError
 import service_config
 
 from pydicom.dataset import FileDataset, FileMetaDataset
-from pydicom.encaps import encapsulate
+import numpy as np
+from pydicom.encaps import encapsulate, generate_pixel_data_frame
 from pydicom.uid import (
     ExplicitVRLittleEndian,
     EncapsulatedPDFStorage,
@@ -218,6 +219,146 @@ class FolderMonitor:
 
         ds.save_as(out_path, write_like_original=False)
 
+    # def _convert_multi_file_to_multiframe(self, dicom_paths: list[Path], out_path: Path) -> bool:
+    #     if not dicom_paths:
+    #         return False
+    #     try:
+    #         datasets = [pydicom.dcmread(p) for p in dicom_paths]
+    #     except Exception:
+    #         return False
+
+    #     if not datasets:
+    #         return False
+
+    #     def _sort_key(ds):
+    #         ipp = getattr(ds, "ImagePositionPatient", None)
+    #         if ipp and len(ipp) >= 3:
+    #             try:
+    #                 return float(ipp[2])
+    #             except Exception:
+    #                 pass
+    #         inst = getattr(ds, "InstanceNumber", None)
+    #         if inst is not None:
+    #             try:
+    #                 return int(inst)
+    #             except Exception:
+    #                 pass
+    #         return 0
+
+    #     datasets.sort(key=_sort_key)
+    #     first = datasets[0]
+
+    #     required = [
+    #         "Rows",
+    #         "Columns",
+    #         "SamplesPerPixel",
+    #         "PhotometricInterpretation",
+    #         "BitsAllocated",
+    #         "BitsStored",
+    #         "HighBit",
+    #         "PixelRepresentation",
+    #         "PlanarConfiguration",
+    #     ]
+    #     for ds in datasets:
+    #         for tag in required:
+    #             if getattr(ds, tag, None) != getattr(first, tag, None):
+    #                 return False
+
+    #     new_ds = first.copy()
+    #     if not getattr(new_ds, "file_meta", None):
+    #         new_ds.file_meta = FileMetaDataset()
+    #     new_ds.SOPInstanceUID = generate_uid()
+    #     new_ds.file_meta.MediaStorageSOPInstanceUID = new_ds.SOPInstanceUID
+    #     new_ds.file_meta.TransferSyntaxUID = getattr(
+    #         first.file_meta, "TransferSyntaxUID", ExplicitVRLittleEndian
+    #     )
+    #     new_ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
+
+    #     ts = new_ds.file_meta.TransferSyntaxUID
+    #     new_ds.is_little_endian = not getattr(ts, "is_big_endian", False)
+    #     new_ds.is_implicit_VR = getattr(ts, "is_implicit_VR", False)
+    #     new_ds.NumberOfFrames = len(datasets)
+
+    #     for tag in required:
+    #         if hasattr(first, tag):
+    #             setattr(new_ds, tag, getattr(first, tag))
+
+    #     if getattr(ts, "is_compressed", False):
+    #         frames = []
+    #         for ds in datasets:
+    #             try:
+    #                 frame = generate_pixel_data_frame(ds.PixelData, 0)
+    #             except Exception:
+    #                 return False
+    #             frames.append(frame)
+    #         new_ds.PixelData = encapsulate(frames)
+    #     else:
+    #         try:
+    #             import numpy as np
+    #         except Exception:
+    #             return False
+    #         try:
+    #             frames = [ds.pixel_array for ds in datasets]
+    #             stacked = np.stack(frames, axis=0)
+    #             new_ds.PixelData = stacked.tobytes()
+    #         except Exception:
+    #             return False
+
+    #     try:
+    #         new_ds.save_as(out_path, write_like_original=False)
+    #     except Exception:
+    #         return False
+    #     return True
+
+    def _convert_multi_file_to_multiframe(dicom_paths, out_path):
+        """
+        Convert multiple single-frame DICOM files into one multi-frame DICOM.
+
+        Parameters
+        ----------
+        dicom_paths : list[str]
+            Paths to single-frame DICOM files (same series).
+        out_path : str
+            Output path for the multi-frame DICOM.
+        """
+
+        if not dicom_paths:
+            raise ValueError("dicom_paths cannot be empty")
+
+        # Load all DICOMs
+        datasets = [pydicom.dcmread(p) for p in dicom_paths]
+
+        # Sort by InstanceNumber if present (important!)
+        datasets.sort(key=lambda d: getattr(d, "InstanceNumber", 0))
+
+        first_ds = datasets[0]
+
+        # Stack pixel data into (num_frames, rows, cols)
+        pixel_arrays = [ds.pixel_array for ds in datasets]
+        pixel_stack = np.stack(pixel_arrays, axis=0)
+
+        # Create new dataset based on first DICOM
+        multi_ds = first_ds.copy()
+
+        # Update required multi-frame attributes
+        multi_ds.NumberOfFrames = pixel_stack.shape[0]
+        multi_ds.PixelData = pixel_stack.tobytes()
+
+        # Generate new UIDs
+        multi_ds.SOPInstanceUID = generate_uid()
+        multi_ds.file_meta.MediaStorageSOPInstanceUID = multi_ds.SOPInstanceUID
+
+        # Remove single-frame–specific attributes if present
+        if "InstanceNumber" in multi_ds:
+            del multi_ds.InstanceNumber
+
+        # Functional Groups (basic — can be expanded if needed)
+        if hasattr(multi_ds, "PerFrameFunctionalGroupsSequence"):
+            del multi_ds.PerFrameFunctionalGroupsSequence
+
+        # Save as multi-frame DICOM
+        multi_ds.save_as(out_path, write_like_original=False)
+
     def _format_case_date(self, ts: float) -> str:
         return datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
 
@@ -333,6 +474,9 @@ class FolderMonitor:
             romexis = False
             sop_uids = set()
             study_info = None
+            dicom_files = []
+            single_dicom_files = []
+            multi_dicom_files = []
             try:
                 stack = [case]
                 while stack:
@@ -373,6 +517,7 @@ class FolderMonitor:
                                 # item is single dicom
                                 has_single_dicom = True
                                 single_dicom_count += 1
+                                single_dicom_files.append(item)
                             else:
                                 # item is a project (multi-frame)
                                 has_project = True
@@ -381,6 +526,9 @@ class FolderMonitor:
                             # item is multiple dicom (multi-file series)
                             has_multiple_dicom = True
                             multiple_dicom_count += 1
+                            multi_dicom_files.append(item)
+
+                        dicom_files.append(item)
 
                         try:
                             shutil.copy2(item, dicoms_folder / item.name)
@@ -406,6 +554,51 @@ class FolderMonitor:
             has_pdf = pdf_count > 0
             has_images = image_count > 0
             has_any_dicom = has_single_dicom or has_multiple_dicom or has_project
+
+            orthanc_folder = case_staging_folder / "Orthanc"
+            orthanc_folder.mkdir(parents=True, exist_ok=True)
+
+            if has_single_dicom and romexis:
+                for dicom_path in single_dicom_files:
+                    try:
+                        out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
+                        shutil.copy2(dicom_path, orthanc_folder / out_name)
+                    except Exception:
+                        pass
+                self._post_ui_log(
+                    f"Copied {len(single_dicom_files)} single Romexis DICOM(s) to Orthanc for case {case.name}"
+                )
+            elif has_single_dicom and not romexis:
+                for dicom_path in single_dicom_files:
+                    try:
+                        ds = pydicom.dcmread(dicom_path)
+                        if not getattr(ds, "file_meta", None):
+                            ds.file_meta = FileMetaDataset()
+                        ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
+                        out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
+                        ds.save_as(orthanc_folder / out_name, write_like_original=False)
+                    except Exception:
+                        pass
+                self._post_ui_log(
+                    f"Updated ImplementationVersionName and copied {len(single_dicom_files)} single DICOM(s) to Orthanc for case {case.name}"
+                )
+            elif (not has_single_dicom) and (not romexis) and multi_dicom_files:
+                try:
+                    out_name = f"{case.name} DCM.dcm"
+                    out_path = orthanc_folder / out_name
+                    success = self._convert_multi_file_to_multiframe(multi_dicom_files, out_path)
+                    if success:
+                        self._post_ui_log(
+                            f"Converted {len(multi_dicom_files)} multi-file DICOM(s) to multi-frame and copied to Orthanc for case {case.name}"
+                        )
+                    else:
+                        self._post_ui_log(
+                            f"Failed to convert multi-file DICOM(s) to multi-frame for case {case.name}"
+                        )
+                except Exception:
+                    self._post_ui_log(
+                        f"Error while converting multi-file DICOM(s) for case {case.name}"
+                    )
 
             if pdf_files or image_files:
                 if study_info is None:
