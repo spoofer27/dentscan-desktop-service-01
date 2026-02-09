@@ -1,8 +1,8 @@
 # Logs
 *.log
-log.txt
-log.text
-service_boot.log
+services\log.txt
+services\log.txt
+services\service_boot.log
 
 # Rotated logs
 log.txt.*

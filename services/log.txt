@@ -5478,3 +5478,93 @@
 2026-02-09 16:42:46 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
 2026-02-09 16:42:46 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
 2026-02-09 16:42:48 - =========== 5 Seconds ============
+2026-02-09 16:42:53 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:53 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:53 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:53 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:53 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:53 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:53 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:53 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:54 - =========== 5 Seconds ============
+2026-02-09 16:42:59 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:59 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:59 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:42:59 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:59 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:59 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:59 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:42:59 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:01 - =========== 5 Seconds ============
+2026-02-09 16:43:06 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:06 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:06 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:06 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:06 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:06 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:06 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:06 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:08 - =========== 5 Seconds ============
+2026-02-09 16:43:13 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:13 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:13 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:13 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:13 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:15 - =========== 5 Seconds ============
+2026-02-09 16:43:20 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:20 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:20 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:20 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:20 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:21 - =========== 5 Seconds ============
+2026-02-09 16:43:26 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:26 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:26 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:26 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:26 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:26 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:26 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:26 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:28 - =========== 5 Seconds ============
+2026-02-09 16:43:33 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:33 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:33 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:33 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:33 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:33 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:33 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:33 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:35 - =========== 5 Seconds ============
+2026-02-09 16:43:40 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:40 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:40 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:40 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:40 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:40 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:40 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:40 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:42 - =========== 5 Seconds ============
+2026-02-09 16:43:47 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:47 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:47 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:47 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:47 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:47 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:47 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:47 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:49 - =========== 5 Seconds ============
+2026-02-09 16:43:54 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:54 - Monitor folder ready: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:54 - FolderMonitor check OK: C:\Users\spoof\Desktop\09-02-2026
+2026-02-09 16:43:54 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:54 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:54 - Staging folder check OK: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:54 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:54 - Staging folder ready: C:\Users\spoof\Desktop\Staging\2026\02-2026\09-02-2026
+2026-02-09 16:43:55 - =========== 5 Seconds ============
