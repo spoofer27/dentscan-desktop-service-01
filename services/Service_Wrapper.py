@@ -63,7 +63,6 @@ class MyService(win32serviceutil.ServiceFramework):
                 log_file.write(f"Working directory: {os.path.dirname(__file__)}\n")
         except Exception:
             pass
-        
         import CodeIWantToRun
         self.worker_thread = threading.Thread(
             target=CodeIWantToRun.main,

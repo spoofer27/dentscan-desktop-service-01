@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from uploader import OrthancUploader
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -12,11 +12,8 @@ from logging.handlers import RotatingFileHandler
 import json
 from urllib import request
 from urllib.error import URLError
-
 import service_config
-
 from pydicom.dataset import FileDataset, FileMetaDataset
-import numpy as np
 from pydicom.encaps import encapsulate, generate_pixel_data_frame
 from pydicom.uid import (
     ExplicitVRLittleEndian,
@@ -89,11 +86,6 @@ class FolderMonitor:
         today_folder_name = datetime.now().strftime(self.date_format)
         today_folder = self.root_path / today_folder_name
         today_folder.mkdir(parents=True, exist_ok=True)
-
-        logger.info("Monitor folder ready: %s", today_folder)
-        # Best-effort: also send to UI log API
-        self._post_ui_log(f"Monitor folder ready: {today_folder}")
-
         return today_folder
 
     def ensure_today_staging_folder(self) -> Path:
@@ -106,10 +98,6 @@ class FolderMonitor:
         today_staging_folder = month_staging_folder / now.strftime("%d-%m-%Y")
 
         today_staging_folder.mkdir(parents=True, exist_ok=True)
-
-        logger.info("Staging folder ready: %s", today_staging_folder)
-        # Best-effort: also send to UI log API
-        self._post_ui_log(f"Staging folder ready: {today_staging_folder}")
 
         return today_staging_folder
 
@@ -219,98 +207,7 @@ class FolderMonitor:
 
         ds.save_as(out_path, write_like_original=False)
 
-    # def _convert_multi_file_to_multiframe(self, dicom_paths: list[Path], out_path: Path) -> bool:
-    #     if not dicom_paths:
-    #         return False
-    #     try:
-    #         datasets = [pydicom.dcmread(p) for p in dicom_paths]
-    #     except Exception:
-    #         return False
-
-    #     if not datasets:
-    #         return False
-
-    #     def _sort_key(ds):
-    #         ipp = getattr(ds, "ImagePositionPatient", None)
-    #         if ipp and len(ipp) >= 3:
-    #             try:
-    #                 return float(ipp[2])
-    #             except Exception:
-    #                 pass
-    #         inst = getattr(ds, "InstanceNumber", None)
-    #         if inst is not None:
-    #             try:
-    #                 return int(inst)
-    #             except Exception:
-    #                 pass
-    #         return 0
-
-    #     datasets.sort(key=_sort_key)
-    #     first = datasets[0]
-
-    #     required = [
-    #         "Rows",
-    #         "Columns",
-    #         "SamplesPerPixel",
-    #         "PhotometricInterpretation",
-    #         "BitsAllocated",
-    #         "BitsStored",
-    #         "HighBit",
-    #         "PixelRepresentation",
-    #         "PlanarConfiguration",
-    #     ]
-    #     for ds in datasets:
-    #         for tag in required:
-    #             if getattr(ds, tag, None) != getattr(first, tag, None):
-    #                 return False
-
-    #     new_ds = first.copy()
-    #     if not getattr(new_ds, "file_meta", None):
-    #         new_ds.file_meta = FileMetaDataset()
-    #     new_ds.SOPInstanceUID = generate_uid()
-    #     new_ds.file_meta.MediaStorageSOPInstanceUID = new_ds.SOPInstanceUID
-    #     new_ds.file_meta.TransferSyntaxUID = getattr(
-    #         first.file_meta, "TransferSyntaxUID", ExplicitVRLittleEndian
-    #     )
-    #     new_ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
-
-    #     ts = new_ds.file_meta.TransferSyntaxUID
-    #     new_ds.is_little_endian = not getattr(ts, "is_big_endian", False)
-    #     new_ds.is_implicit_VR = getattr(ts, "is_implicit_VR", False)
-    #     new_ds.NumberOfFrames = len(datasets)
-
-    #     for tag in required:
-    #         if hasattr(first, tag):
-    #             setattr(new_ds, tag, getattr(first, tag))
-
-    #     if getattr(ts, "is_compressed", False):
-    #         frames = []
-    #         for ds in datasets:
-    #             try:
-    #                 frame = generate_pixel_data_frame(ds.PixelData, 0)
-    #             except Exception:
-    #                 return False
-    #             frames.append(frame)
-    #         new_ds.PixelData = encapsulate(frames)
-    #     else:
-    #         try:
-    #             import numpy as np
-    #         except Exception:
-    #             return False
-    #         try:
-    #             frames = [ds.pixel_array for ds in datasets]
-    #             stacked = np.stack(frames, axis=0)
-    #             new_ds.PixelData = stacked.tobytes()
-    #         except Exception:
-    #             return False
-
-    #     try:
-    #         new_ds.save_as(out_path, write_like_original=False)
-    #     except Exception:
-    #         return False
-    #     return True
-
-    def _convert_multi_file_to_multiframe(dicom_paths, out_path):
+    def _convert_multi_file_to_multiframe(self, dicom_paths, out_path):
         """
         Convert multiple single-frame DICOM files into one multi-frame DICOM.
 
@@ -321,6 +218,10 @@ class FolderMonitor:
         out_path : str
             Output path for the multi-frame DICOM.
         """
+        try:
+            import numpy as np
+        except Exception as e:
+            self._post_ui_log(f"NumPy import failed: {e}", source="FolderMonitor")
 
         if not dicom_paths:
             raise ValueError("dicom_paths cannot be empty")
@@ -334,7 +235,13 @@ class FolderMonitor:
         first_ds = datasets[0]
 
         # Stack pixel data into (num_frames, rows, cols)
-        pixel_arrays = [ds.pixel_array for ds in datasets]
+        
+        try:
+            pixel_arrays = [ds.pixel_array for ds in datasets]
+        except Exception as e:
+            self._post_ui_log(f"Failed to extract pixel data: {e}", source="FolderMonitor")
+            raise
+
         pixel_stack = np.stack(pixel_arrays, axis=0)
 
         # Create new dataset based on first DICOM
@@ -358,6 +265,7 @@ class FolderMonitor:
 
         # Save as multi-frame DICOM
         multi_ds.save_as(out_path, write_like_original=False)
+        self._post_ui_log(f"Saved multi-frame DICOM to {out_path}", source="FolderMonitor")
 
     def _format_case_date(self, ts: float) -> str:
         return datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
@@ -368,6 +276,49 @@ class FolderMonitor:
         minute = dt.strftime("%M")
         suffix = dt.strftime("%p").lower()
         return f"{hour}:{minute}{suffix}"
+
+    def _upload_orthanc_folder(self, orthanc_folder: Path, case_name: str):
+        marker_path = orthanc_folder / ".uploaded"
+        if marker_path.exists():
+            return
+
+        dicom_files = [
+            p for p in orthanc_folder.rglob("*")
+            if p.is_file() and p.suffix.lower() == ".dcm"
+        ]
+        if not dicom_files:
+            return
+
+        try:
+            uploader = OrthancUploader.from_config()
+        except Exception as exc:
+            self._post_ui_log(
+                f"Orthanc upload skipped for {case_name}: {exc}",
+                source="FolderMonitor",
+            )
+            return
+
+        result = uploader.upload_folder(orthanc_folder)
+        if result["uploaded"] == 0:
+            return
+
+        if result["failed"] == 0:
+            try:
+                marker_path.write_text(
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
+            self._post_ui_log(
+                f"Uploaded {result['uploaded']} DICOM(s) to Orthanc for case {case_name}",
+                source="FolderMonitor",
+            )
+        else:
+            self._post_ui_log(
+                f"Orthanc upload had {result['failed']} failure(s) for case {case_name}",
+                source="FolderMonitor",
+            )
 
     def find_cases(self):
         """
@@ -476,7 +427,7 @@ class FolderMonitor:
             study_info = None
             dicom_files = []
             single_dicom_files = []
-            multi_dicom_files = []
+            multi_series = {}
             try:
                 stack = [case]
                 while stack:
@@ -525,8 +476,10 @@ class FolderMonitor:
                         else:
                             # item is multiple dicom (multi-file series)
                             has_multiple_dicom = True
-                            multiple_dicom_count += 1
-                            multi_dicom_files.append(item)
+                            series_uid = getattr(ds, "SeriesInstanceUID", None)
+                            if not series_uid:
+                                series_uid = f"unknown-{case.name}"
+                            multi_series.setdefault(series_uid, []).append(item)
 
                         dicom_files.append(item)
 
@@ -553,11 +506,17 @@ class FolderMonitor:
             # getting counts
             has_pdf = pdf_count > 0
             has_images = image_count > 0
+            if has_multiple_dicom:
+                multiple_dicom_count = len(multi_series)
+
+            multi_dicom_files = []
+            if multi_series:
+                multi_dicom_files = max(multi_series.values(), key=len)
+
             has_any_dicom = has_single_dicom or has_multiple_dicom or has_project
 
             orthanc_folder = case_staging_folder / "Orthanc"
             orthanc_folder.mkdir(parents=True, exist_ok=True)
-
             if has_single_dicom and romexis:
                 for dicom_path in single_dicom_files:
                     try:
@@ -599,7 +558,7 @@ class FolderMonitor:
                     self._post_ui_log(
                         f"Error while converting multi-file DICOM(s) for case {case.name}"
                     )
-
+            
             if pdf_files or image_files:
                 if study_info is None:
                     study_info = {"study_uid": generate_uid()}
@@ -622,6 +581,8 @@ class FolderMonitor:
                         self._create_image_dicom(image_path, out_path, study_info)
                     except Exception:
                         pass
+            
+            self._upload_orthanc_folder(orthanc_folder, case.name)
 
             cases.append({
                 "name": case.name, 
