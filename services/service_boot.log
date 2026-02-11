@@ -1,126 +1,78 @@
 
 Startup: DDS01
-Timestamp: 2026-02-09 22:14:31
+Timestamp: 2026-02-11 13:12:05
+PID: 9960
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 13:18:09
+PID: 22604
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 13:21:14
+PID: 18156
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:10:56
+PID: 5852
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:18:19
+PID: 1492
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:26:18
+PID: 24400
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:38:35
+PID: 1860
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:52:00
+PID: 21932
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 17:56:15
+PID: 5036
+Python: C:\Program Files\Python312\pythonservice.exe
+Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
+
+Startup: DDS01
+Timestamp: 2026-02-11 18:00:16
 PID: 22824
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 
 Startup: DDS01
-Timestamp: 2026-02-09 22:16:25
-PID: 18408
+Timestamp: 2026-02-11 18:02:55
+PID: 6496
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 
 Startup: DDS01
-Timestamp: 2026-02-09 22:20:20
-PID: 14528
+Timestamp: 2026-02-11 18:03:48
+PID: 5576
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
 
 Startup: DDS01
-Timestamp: 2026-02-09 22:21:19
-PID: 14536
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:23:15
-PID: 8720
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:33:56
-PID: 18652
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:34:45
-PID: 1828
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:40:03
-PID: 6716
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:41:58
-PID: 15992
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:43:45
-PID: 14080
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:46:59
-PID: 20416
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 22:52:19
-PID: 22368
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:35:16
-PID: 21512
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:36:53
-PID: 19068
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:39:32
-PID: 16004
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:50:16
-PID: 8280
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:51:02
-PID: 15768
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:52:28
-PID: 14392
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-09 23:58:25
-PID: 16680
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-10 00:01:28
-PID: 19776
-Python: C:\Program Files\Python312\pythonservice.exe
-Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services
-
-Startup: DDS01
-Timestamp: 2026-02-10 00:33:20
-PID: 7068
+Timestamp: 2026-02-11 18:05:11
+PID: 23168
 Python: C:\Program Files\Python312\pythonservice.exe
 Working directory: G:\Projects\Py Projects\dentscan-desktop-service-01\services

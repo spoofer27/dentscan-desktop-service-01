@@ -9,9 +9,9 @@ DEFAULT_SERVICE_API_PORT = 8085
 DEFAULT_SERVICE_ROOT_PATH = 'C:\\Users\\spoof\\Desktop'
 DEFAULT_SERVICE_STAGING_PATH = 'C:\\Users\\spoof\\Desktop'
 
-DEFAULT_ORTHANC_URL = "http://192.168.1.50:8042"
-DEFAULT_ORTHANC_USERNAME = "orthanc_user"
-DEFAULT_ORTHANC_PASSWORD = "orthanc_pass"
+DEFAULT_ORTHANC_URL = ""
+DEFAULT_ORTHANC_USERNAME = ""
+DEFAULT_ORTHANC_PASSWORD = ""
 
 SERVICE_NAME = 'DDS01'
 SERVICE_AUTO_START = True
@@ -24,3 +24,10 @@ SERVICE_STAGING_PATH = 'C:\\Users\\spoof\\Desktop'
 ORTHANC_URL = DEFAULT_ORTHANC_URL
 ORTHANC_USERNAME = DEFAULT_ORTHANC_USERNAME
 ORTHANC_PASSWORD = DEFAULT_ORTHANC_PASSWORD
+
+# PACS (Keycloak client_credentials)
+PACS_BASE_URL = "https://pacs.dentascan.net"
+PACS_TOKEN_URL = "https://auth.dentascan.net/realms/dentascan/protocol/openid-connect/token"
+PACS_CLIENT_ID = "pacs-uploader"
+PACS_CLIENT_SECRET = "yLEZlI0UE44ezsaNNPBX74baYdQi5ZoU"
+

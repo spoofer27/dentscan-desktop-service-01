@@ -1,5 +1,6 @@
 from __future__ import annotations
 # from uploader import OrthancUploader
+# from pacs_uploader import PacsUploader
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -293,7 +294,7 @@ class FolderMonitor:
 
         # Save as multi-frame DICOM
         multi_ds.save_as(out_path, write_like_original=False)
-        self._post_ui_log(f"Saved multi-frame DICOM to {out_path}", source="FolderMonitor")
+        # self._post_ui_log(f"Saved multi-frame DICOM to {out_path}", source="FolderMonitor")
 
     def _format_case_date(self, ts: float) -> str:
         return datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
@@ -305,49 +306,18 @@ class FolderMonitor:
         suffix = dt.strftime("%p").lower()
         return f"{hour}:{minute}{suffix}"
 
-    def _upload_orthanc_folder(self, orthanc_folder: Path, case_name: str):
-        marker_path = orthanc_folder / ".uploaded"
-        if marker_path.exists():
-            return
-
-        dicom_files = [
-            p for p in orthanc_folder.rglob("*")
-            if p.is_file() and p.suffix.lower() == ".dcm"
-        ]
-        if not dicom_files:
-            return
-
+    def _upload_pacs_folder(self, orthanc_folder: Path, case_name: str):
         try:
-            from uploader import OrthancUploader
-            uploader = OrthancUploader.from_config()
+            from pacs_uploader import PacsUploader
+            uploader = PacsUploader.from_config()
         except Exception as exc:
             self._post_ui_log(
-                f"Orthanc upload skipped for {case_name}: {exc}",
+                f"PACS upload skipped for {case_name}: {exc}",
                 source="FolderMonitor",
             )
             return
 
-        result = uploader.upload_folder(orthanc_folder)
-        if result["uploaded"] == 0:
-            return
-
-        if result["failed"] == 0:
-            try:
-                marker_path.write_text(
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    encoding="utf-8",
-                )
-            except Exception:
-                pass
-            self._post_ui_log(
-                f"Uploaded {result['uploaded']} DICOM(s) to Orthanc for case {case_name}",
-                source="FolderMonitor",
-            )
-        else:
-            self._post_ui_log(
-                f"Orthanc upload had {result['failed']} failure(s) for case {case_name}",
-                source="FolderMonitor",
-            )
+        uploader.upload_folder_async(orthanc_folder, case_name)
 
     def find_cases(self):
         """
@@ -405,6 +375,7 @@ class FolderMonitor:
             dicoms_folder = case_staging_folder / "Dicoms"
             attachments_folder.mkdir(parents=True, exist_ok=True)
             dicoms_folder.mkdir(parents=True, exist_ok=True)
+            # trying to check pdfs and images
             try:
                 stack = [case]
                 while stack:
@@ -429,18 +400,35 @@ class FolderMonitor:
                             pdf_count += 1
                             pdf_files.append(item)
                             try:
-                                shutil.copy2(item, attachments_folder / item.name)
-                            except Exception:
+                                dest_path = attachments_folder / item.name
+                                if dest_path.exists():
+                                    if dest_path.stat().st_size == item.stat().st_size:
+                                        # self._post_ui_log(f"File {item.name} already exists and is identical, skipping.")
+                                        continue
+                                shutil.copy2(item, dest_path)
+                                # self._post_ui_log(f"Copied PDF file {item.name} to attachments for case {case.name}")
+                                continue
+                            except Exception as exc:
+                                self._post_ui_log(f"Failed to copy PDF file {item.name}: {exc}", source="FolderMonitor")
                                 pass
                         elif ext in IMAGE_EXTS:
                             image_count += 1
                             image_files.append(item)
                             try:
-                                shutil.copy2(item, attachments_folder / item.name)
-                            except Exception:
+                                dest_path = attachments_folder / item.name
+                                if dest_path.exists():
+                                    if dest_path.stat().st_size == item.stat().st_size:
+                                        # self._post_ui_log(f"File {item.name} already exists and is identical, skipping.")
+                                        continue
+                                shutil.copy2(item, dest_path)
+                                # self._post_ui_log(f"Copied image file {item.name} to attachments for case {case.name}")
+                                continue
+                            except Exception as exc:
+                                self._post_ui_log(f"Failed to copy image file {item.name}: {exc}", source="FolderMonitor")
                                 pass
 
-            except Exception:
+            except Exception as exc:
+                self._post_ui_log(f"Error while scanning for PDFs/images in case {case.name}: {exc}", source="FolderMonitor")
                 pdf_count = 0
                 image_count = 0
             
@@ -456,12 +444,13 @@ class FolderMonitor:
             study_info = None
             dicom_files = []
             single_dicom_files = []
+            project_files = []
             multi_series = {}
+            # trying to check dicoms
             try:
                 stack = [case]
                 while stack:
                     current = stack.pop()
-
                     for item in current.iterdir():
 
                         # if folder, add to stack
@@ -478,7 +467,8 @@ class FolderMonitor:
                             continue
                         try:
                             ds = pydicom.dcmread(item, stop_before_pixels=True)
-                        except InvalidDicomError:
+                        except InvalidDicomError as exc:
+                            self._post_ui_log(f"Invalid DICOM file {item.name}, skipping: {exc}", source="FolderMonitor")
                             continue
 
                         if study_info is None:
@@ -501,6 +491,7 @@ class FolderMonitor:
                             else:
                                 # item is a project (multi-frame)
                                 has_project = True
+                                project_files.append(item)
                                 project_count += 1
                         else:
                             # item is multiple dicom (multi-file series)
@@ -513,16 +504,22 @@ class FolderMonitor:
                         dicom_files.append(item)
 
                         try:
-                            shutil.copy2(item, dicoms_folder / item.name)
-                        except Exception:
-                            pass
+                            dest_path = dicoms_folder / item.name
+                            if dest_path.exists():
+                                if dest_path.stat().st_size == item.stat().st_size:
+                                    # self._post_ui_log(f"File {item.name} already exists and is identical, skipping.")
+                                    continue
+                            shutil.copy2(item, dest_path)
+                            # self._post_ui_log(f"Copied DICOM file {item.name} to dicoms for case {case.name}")
+                        except Exception as exc:
+                            self._post_ui_log(f"Failed to copy DICOM file {item.name} to dicoms for case {case.name}: {exc}", source="FolderMonitor")
 
                         # if dicom has romexis tag
                         impl_version = getattr(getattr(ds, "file_meta", None), "ImplementationVersionName", "")
                         if "ROMEXIS" in str(impl_version).upper():
                             romexis = True
-
-            except Exception:
+            except Exception as exc:
+                self._post_ui_log(f"Error while scanning for DICOMs in case {case.name}: {exc}", source="FolderMonitor")
                 single_dicom_count = 0
                 multiple_dicom_count = 0
                 project_count = 0
@@ -535,59 +532,97 @@ class FolderMonitor:
             # getting counts
             has_pdf = pdf_count > 0
             has_images = image_count > 0
-            if has_multiple_dicom:
-                multiple_dicom_count = len(multi_series)
-
             multi_dicom_files = []
+            if has_multiple_dicom:
+                multiple_dicom_count = len(multi_series)          
             if multi_series:
                 multi_dicom_files = max(multi_series.values(), key=len)
 
             has_any_dicom = has_single_dicom or has_multiple_dicom or has_project
-
             orthanc_folder = case_staging_folder / "Orthanc"
             orthanc_folder.mkdir(parents=True, exist_ok=True)
+            # pacs_lock_path = orthanc_folder / ".pacs_uploading"
+            # if pacs_lock_path.exists():
+            #     self._post_ui_log(
+            #         f"Staging skipped, PACS upload is in progress for case {case.name} "
+            #     )
+            # orthanc stagging logic:
+            # if single dicom(s) and romexis -> copy as is
             if has_single_dicom and romexis:
                 for dicom_path in single_dicom_files:
                     try:
                         out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
-                        shutil.copy2(dicom_path, orthanc_folder / out_name)
-                    except Exception:
+                        out_path = orthanc_folder / out_name
+                        if out_path.exists():
+                            # self._post_ui_log(f"File {out_name} already exists in Orthanc staging, skipping copy.")
+                            continue
+                        shutil.copy2(dicom_path, out_path)
+                        # self._post_ui_log(f"Copied Romexis DICOM file {dicom_path.name} to Orthanc staging for case {case.name}")
+                    except Exception as exc:
+                        self._post_ui_log(f"Failed to copy {dicom_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
                         pass
-                self._post_ui_log(
-                    f"Copied {len(single_dicom_files)} single Romexis DICOM(s) to Orthanc for case {case.name}"
-                )
+                # self._post_ui_log(
+                #     f"Copied {len(single_dicom_files)} single Romexis DICOM(s) to Orthanc for case {case.name}"
+                # )
+            # if project -> copy as is
+            elif has_project:
+                for project_path in project_files:
+                    try:
+                        out_name = f"{project_path.stem} DCM {project_path.suffix or '.dcm'}"
+                        out_path = orthanc_folder / out_name
+                        if out_path.exists():
+                            # self._post_ui_log(f"File {out_name} already exists in Orthanc staging, skipping copy.")
+                            continue
+                        shutil.copy2(project_path, out_path)
+                        # self._post_ui_log(f"Copied project file {project_path.name} to Orthanc staging for case {case.name}")
+                    except Exception as exc:
+                        self._post_ui_log(f"Failed to copy {project_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
+                        pass
+                # self._post_ui_log(
+                #     f"Copied {len(project_files)} project file(s) to Orthanc for case {case.name}"
+                # )
+            # if single dicom(s) and not romexis -> update ImplementationVersionName and copy
             elif has_single_dicom and not romexis:
                 for dicom_path in single_dicom_files:
                     try:
+                        out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
+                        out_path = orthanc_folder / out_name
+                        if out_path.exists():
+                            # self._post_ui_log(f"File {out_name} already exists in Orthanc staging, skipping copy.")
+                            continue
                         ds = pydicom.dcmread(dicom_path)
                         if not getattr(ds, "file_meta", None):
                             ds.file_meta = FileMetaDataset()
                         ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
-                        out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
-                        ds.save_as(orthanc_folder / out_name, write_like_original=False)
-                    except Exception:
+                        ds.save_as(out_path, write_like_original=False)
+                        # self._post_ui_log(f"Updated ROMEXIS Implementation and copied DICOM file {dicom_path.name} to Orthanc staging for case {case.name}")
+                    except Exception as exc:
+                        self._post_ui_log(f"Failed to update Implementation and copy {dicom_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
                         pass
-                self._post_ui_log(
-                    f"Updated ImplementationVersionName and copied {len(single_dicom_files)} single DICOM(s) to Orthanc for case {case.name}"
-                )
+                # self._post_ui_log(
+                #     f"Updated ROMEXIS Implementation and copied {len(single_dicom_files)} single DICOM(s) to Orthanc for case {case.name}"
+                # )
+            # if multiple dicom(s) and not romexis -> convert to multi-frame and copy
             elif (not has_single_dicom) and (not romexis) and multi_dicom_files:
+                # self._post_ui_log(f"Found multiple DICOM files for case {case.name}")
                 try:
                     out_name = f"{case.name} DCM.dcm"
                     out_path = orthanc_folder / out_name
-                    success = self._convert_multi_file_to_multiframe(multi_dicom_files, out_path)
-                    if success:
-                        self._post_ui_log(
-                            f"Converted {len(multi_dicom_files)} multi-file DICOM(s) to multi-frame and copied to Orthanc for case {case.name}"
-                        )
-                    else:
-                        self._post_ui_log(
-                            f"Failed to convert multi-file DICOM(s) to multi-frame for case {case.name}"
-                        )
-                except Exception:
+                    if out_path.exists():
+                            # self._post_ui_log(f"File {out_name} already exists in Orthanc staging, skipping copy.")
+                            continue
+                    try:
+                        success = self._convert_multi_file_to_multiframe(multi_dicom_files, out_path)
+                        # self._post_ui_log(f"Successfully converted multi to single dicom for case {case.name} and copied to Orthanc staging")
+                    except Exception as exc:
+                        self._post_ui_log(f"Multi-frame conversion error for case {case.name}: {exc}", source="FolderMonitor")
+                        success = False
+                except Exception as exc:
                     self._post_ui_log(
-                        f"Error while converting multi-file DICOM(s) for case {case.name}"
+                        f"Error while converting multi-file DICOM(s) for case {case.name}: {exc}", source="FolderMonitor"
                     )
-            
+            # if pdf/image files and no pacs upload in progress -> create pdf dicom(s) and copy to orthanc staging
+            # if (pdf_files or image_files) and not pacs_lock_path.exists():
             if pdf_files or image_files:
                 if study_info is None:
                     study_info = {"study_uid": generate_uid()}
@@ -600,18 +635,29 @@ class FolderMonitor:
                 for pdf_path in pdf_files:
                     try:
                         out_path = orthanc_folder / f"{pdf_path.stem} PDF.dcm"
+                        if out_path.exists():
+                            # self._post_ui_log(f"File {out_path.name} already exists in Orthanc staging, skipping PDF DICOM creation.")
+                            continue
                         self._create_pdf_dicom(pdf_path, out_path, study_info)
-                    except Exception:
+                        # self._post_ui_log(f"Created PDF DICOM for {pdf_path.name} in Orthanc staging for case {case.name}")
+                    except Exception as exc:
+                        self._post_ui_log(f"Failed to create PDF DICOM for {pdf_path.name}: {exc}", source="FolderMonitor")
                         pass
 
                 for image_path in image_files:
                     try:
                         out_path = orthanc_folder / f"{image_path.stem} IMG.dcm"
+                        if out_path.exists():
+                            # self._post_ui_log(f"File {out_path.name} already exists in Orthanc staging, skipping image DICOM creation.")
+                            continue
                         self._create_image_dicom(image_path, out_path, study_info)
-                    except Exception:
+                        # self._post_ui_log(f"Created image DICOM for {image_path.name} in Orthanc staging for case {case.name}")
+                    except Exception as exc:
+                        self._post_ui_log(f"Failed to create image DICOM for {image_path.name}: {exc}", source="FolderMonitor")
                         pass
             
-            self._upload_orthanc_folder(orthanc_folder, case.name)
+            # self._upload_orthanc_folder(orthanc_folder, case.name)
+            self._upload_pacs_folder(orthanc_folder, case.name)
 
             cases.append({
                 "name": case.name, 
