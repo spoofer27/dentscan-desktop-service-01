@@ -14,7 +14,11 @@ class MyService(win32serviceutil.ServiceFramework):
     _svc_name_ = SERVICE_NAME
     _svc_display_name_ = "Dentascan Desktop Service 01"
     _svc_description_ = "Dentascan Desktop Service 01 for basic background processing tasks."
-    _svc_type_ = win32service.SERVICE_AUTO_START
+    _svc_type_ = win32service.SERVICE_WIN32_OWN_PROCESS
+    _svc_start_type_ = win32service.SERVICE_AUTO_START
+    _svc_delayed_start_ = True
+
+    # _svc_type_ = win32service.SERVICE_AUTO_START
 
     # Use one of the following (optional):
     # _svc_account_ = "username"
