@@ -122,7 +122,7 @@ class FolderMonitor:
         meta.ImplementationClassUID = PYDICOM_IMPLEMENTATION_UID
         return meta
 
-    def _create_pdf_dicom(self, pdf_path: Path, out_path: Path, study_info: dict):
+    def _create_pdf_dicom(self, pdf_path: Path, out_path: Path, study_info: dict, case_name: str = ""):
         with pdf_path.open("rb") as f:
             pdf_bytes = f.read()
 
@@ -146,7 +146,8 @@ class FolderMonitor:
         ds.EncapsulatedDocument = encapsulate([pdf_bytes])
         ds.EncapsulatedDocumentLength = len(pdf_bytes)
 
-        ds.PatientName = study_info.get("patient_name", "")
+        patient_name = study_info.get("patient_name", None)
+        ds.PatientName = patient_name if patient_name else case_name
         ds.PatientID = study_info.get("patient_id", "")
         ds.PatientBirthDate = study_info.get("patient_birth_date", "")
         ds.PatientSex = study_info.get("patient_sex", "")
@@ -156,8 +157,9 @@ class FolderMonitor:
         ds.StudyDescription = study_info.get("study_description", "")
 
         ds.save_as(out_path, write_like_original=False)
+        self._post_ui_log(f"Created PDF DICOM for {pdf_path.name} in Orthanc staging for case {case_name}", source="FolderMonitor")
 
-    def _create_image_dicom(self, image_path: Path, out_path: Path, study_info: dict):
+    def _create_image_dicom(self, image_path: Path, out_path: Path, study_info: dict, case_name: str = ""):
         try:
             from PIL import Image  # type: ignore[import-not-found]
         except Exception:
@@ -184,7 +186,8 @@ class FolderMonitor:
         ds.ContentDate = now.strftime("%Y%m%d")
         ds.ContentTime = now.strftime("%H%M%S")
 
-        ds.PatientName = study_info.get("patient_name", "")
+        patient_name = study_info.get("patient_name", None)
+        ds.PatientName = patient_name if patient_name else case_name
         ds.PatientID = study_info.get("patient_id", "")
         ds.PatientBirthDate = study_info.get("patient_birth_date", "")
         ds.PatientSex = study_info.get("patient_sex", "")
@@ -543,7 +546,6 @@ class FolderMonitor:
                         out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
                         out_path = orthanc_folder / out_name
                         if out_path.exists():
-                            self._post_ui_log(f"File {out_path.name} already exists in Orthanc staging, skipping copy of {dicom_path.name}.")
                             continue
                         shutil.copy2(dicom_path, out_path)
                     except Exception as exc:
@@ -620,10 +622,8 @@ class FolderMonitor:
                     try:
                         out_path = orthanc_folder / f"{pdf_path.stem} PDF.dcm"
                         if out_path.exists():
-                            # self._post_ui_log(f"File {out_path.name} already exists in Orthanc staging, skipping PDF DICOM creation.")
                             continue
-                        self._create_pdf_dicom(pdf_path, out_path, study_info)
-                        # self._post_ui_log(f"Created PDF DICOM for {pdf_path.name} in Orthanc staging for case {case.name}")
+                        self._create_pdf_dicom(pdf_path, out_path, study_info, case.name)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to create PDF DICOM for {pdf_path.name}: {exc}", source="FolderMonitor")
                         pass
@@ -632,10 +632,8 @@ class FolderMonitor:
                     try:
                         out_path = orthanc_folder / f"{image_path.stem} IMG.dcm"
                         if out_path.exists():
-                            # self._post_ui_log(f"File {out_path.name} already exists in Orthanc staging, skipping image DICOM creation.")
                             continue
-                        self._create_image_dicom(image_path, out_path, study_info)
-                        # self._post_ui_log(f"Created image DICOM for {image_path.name} in Orthanc staging for case {case.name}")
+                        self._create_image_dicom(image_path, out_path, study_info, case.name)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to create image DICOM for {image_path.name}: {exc}", source="FolderMonitor")
                         pass
