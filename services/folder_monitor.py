@@ -320,6 +320,19 @@ class FolderMonitor:
 
         uploader.upload_folder_async(orthanc_folder, case_name)
 
+    def _add_case_label(self, study_uid: str, case_name: str):
+        try:
+            from pacs_uploader import PacsUploader
+            uploader = PacsUploader.from_config()
+        except Exception as exc:
+            self._post_ui_log(
+                f"PACS label skipped for {case_name}: {exc}",
+                source="FolderMonitor",
+            )
+            return
+
+        uploader.add_label(study_uid, case_name)
+
     def find_cases(self):
         """
         Search today's folder for direct case folders.
@@ -638,6 +651,12 @@ class FolderMonitor:
                         self._post_ui_log(f"Failed to create image DICOM for {image_path.name}: {exc}", source="FolderMonitor")
                         pass
             
+            # Add label to PACS study
+            if study_info and study_info.get("study_uid"):
+                self._add_case_label(study_info.get("study_uid"), "Label Test 01")
+            
+            # Upload to PACS
+            self._upload_pacs_folder(orthanc_folder, case.name)
             # self._upload_pacs_folder(orthanc_folder, case.name)
 
             cases.append({

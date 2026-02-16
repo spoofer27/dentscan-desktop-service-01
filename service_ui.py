@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import sys
 from urllib import request
@@ -342,6 +343,10 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         staging_path_row_layout.addWidget(self.config_staging_path, 1)
         staging_path_row_layout.addWidget(staging_browse_btn)
         form.addRow("Staging Path :", staging_path_row)
+
+        self.config_institution_name = QtWidgets.QLineEdit(service_config.INSTITUTION_NAME)
+        form.addRow("Institution Name :", self.config_institution_name)
+
         container.addLayout(form)
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -539,30 +544,47 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         port = int(self.config_api_port.value())
         local_path = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
         staging_path = self.config_staging_path.text().strip() or service_config.DEFAULT_SERVICE_STAGING_PATH
+        institution_name = self.config_institution_name.text().strip() or service_config.DEFAULT_INSTITUTION_NAME
         # _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
         config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
+        try:
+            with open(config_path, "r", encoding="utf-8") as fh:
+                lines = fh.readlines()
+        except FileNotFoundError:
+            lines = []
+
+        def replace_line(key, value):
+            pattern = re.compile(rf"^(\s*{re.escape(key)}\s*=\s*).*$")
+            for i, line in enumerate(lines):
+                match = pattern.match(line)
+                if match:
+                    newline = "\n" if line.endswith("\n") else ""
+                    lines[i] = f"{match.group(1)}{value!r}{newline}"
+                    return True
+            return False
+
+        if not replace_line("SERVICE_AUTO_START", auto_start):
+            lines.append(f"SERVICE_AUTO_START = {auto_start!r}\n")
+        if not replace_line("SERVICE_API_HOST", host):
+            lines.append(f"SERVICE_API_HOST = {host!r}\n")
+        if not replace_line("SERVICE_API_PORT", port):
+            lines.append(f"SERVICE_API_PORT = {port!r}\n")
+        if not replace_line("SERVICE_ROOT_PATH", local_path):
+            lines.append(f"SERVICE_ROOT_PATH = {local_path!r}\n")
+        if not replace_line("SERVICE_STAGING_PATH", staging_path):
+            lines.append(f"SERVICE_STAGING_PATH = {staging_path!r}\n")
+        if not replace_line("INSTITUTION_NAME", institution_name):
+            lines.append(f"INSTITUTION_NAME = {institution_name!r}\n")
+
         with open(config_path, "w", encoding="utf-8") as fh:
-            fh.write(
-                "import os\nfrom pathlib import Path\n\n"
-                f"DEFAULT_SERVICE_NAME = {service_config.DEFAULT_SERVICE_NAME!r}\n"
-                f"DEFAULT_SERVICE_AUTO_START = {service_config.DEFAULT_SERVICE_AUTO_START!r}\n"
-                f"DEFAULT_SERVICE_API_HOST = {service_config.DEFAULT_SERVICE_API_HOST!r}\n"
-                f"DEFAULT_SERVICE_API_PORT = {service_config.DEFAULT_SERVICE_API_PORT!r}\n"
-                f"DEFAULT_SERVICE_ROOT_PATH = {service_config.DEFAULT_SERVICE_ROOT_PATH!r}\n"
-                f"DEFAULT_SERVICE_STAGING_PATH = {service_config.DEFAULT_SERVICE_STAGING_PATH!r}\n\n"
-                f"SERVICE_NAME = {service_config.SERVICE_NAME!r}\n"
-                f"SERVICE_AUTO_START = {auto_start!r}\n"
-                f"SERVICE_API_HOST = {host!r}\n"
-                f"SERVICE_API_PORT = {port!r}\n"
-                f"SERVICE_ROOT_PATH = {local_path!r}\n"
-                f"SERVICE_STAGING_PATH = {staging_path!r}\n"
-            )
+            fh.writelines(lines)
 
         service_config.SERVICE_AUTO_START = auto_start
         service_config.SERVICE_API_HOST = host
         service_config.SERVICE_API_PORT = port
         service_config.SERVICE_ROOT_PATH = local_path
         service_config.SERVICE_STAGING_PATH = staging_path
+        service_config.INSTITUTION_NAME = institution_name
 
         self._update_api_base(host, port)
         self.message_label.setText("Configuration saved")
@@ -574,6 +596,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.config_api_port.setValue(service_config.DEFAULT_SERVICE_API_PORT)
         self.config_local_path.setText(service_config.DEFAULT_SERVICE_ROOT_PATH)
         self.config_staging_path.setText(service_config.DEFAULT_SERVICE_STAGING_PATH)
+        self.config_institution_name.setText(service_config.DEFAULT_INSTITUTION_NAME)
         self._save_config()
 
     def _try_start_api(self):
@@ -703,8 +726,6 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             self.theme_btn.setIcon(self.theme_icon_dark if self.is_dark else self.theme_icon_light)
 
         if self.is_dark:
-            # self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home-dark.svg")))  
-            # self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings-dark.svg")))
             palette = {
                 "window_bg": "#111827",
                 "text": "#e2e8f0",
@@ -723,10 +744,11 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 "menu_bg": "#0f172a",
                 "menu_border": "#334155",
                 "menu_hover": "#1f2937",
+                "input_bg": "#1f2937",
+                "input_border": "#475569",
+                "input_focus": "#3b82f6",
             }
         else:
-            # self.home_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "home.svg")))  
-            # self.settings_btn.setIcon(self._icon_from_path(os.path.join("res", "icons", "settings.svg")))
             palette = {
                 "window_bg": "#f5f7fb",
                 "text": "#1f2937",
@@ -745,6 +767,9 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                 "menu_bg": "#ffffff",
                 "menu_border": "#d5dbe7",
                 "menu_hover": "#eef2ff",
+                "input_bg": "#ffffff",
+                "input_border": "#cbd5e1",
+                "input_focus": "#3b82f6",
             }
 
         self.setStyleSheet(
@@ -801,6 +826,42 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             QToolButton:hover, QPushButton:hover {{
                 border-color: {palette['button_border']};
                 background: {palette['button_hover']};
+            }}
+            QLineEdit, QSpinBox, QPlainTextEdit {{
+                background: {palette['input_bg']};
+                border: 2px solid {palette['input_border']};
+                border-radius: 6px;
+                padding: 6px 10px;
+                selection-background-color: {palette['input_focus']};
+            }}
+            QLineEdit:focus, QSpinBox:focus, QPlainTextEdit:focus {{
+                border: 2px solid {palette['input_focus']};
+            }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                background: {palette['button_bg']};
+                border: 1px solid {palette['input_border']};
+                border-radius: 3px;
+                width: 16px;
+            }}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background: {palette['button_hover']};
+            }}
+            QCheckBox {{
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {palette['input_border']};
+                border-radius: 4px;
+                background: {palette['input_bg']};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {palette['input_focus']};
+                border: 2px solid {palette['input_focus']};
+            }}
+            QCheckBox::indicator:hover {{
+                border: 2px solid {palette['input_focus']};
             }}
             QTabWidget::pane {{
                 border: 0px;

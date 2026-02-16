@@ -59,8 +59,8 @@ class PacsUploader:
             token_url=token_url or getattr(service_config, "PACS_TOKEN_URL", ""),
             client_id=client_id or getattr(service_config, "PACS_CLIENT_ID", ""),
             client_secret=client_secret or getattr(service_config, "PACS_CLIENT_SECRET", ""),
-        )
-
+            )
+    
     def _post_ui_log(self, message: str, source: str = "PacsUploader"):
         host = getattr(service_config, "SERVICE_API_HOST", "127.0.0.1")
         port = int(getattr(service_config, "SERVICE_API_PORT", 8085))
@@ -210,7 +210,7 @@ class PacsUploader:
                 f"PACS lookup failed for SOPInstanceUID {sop_instance_uid}: {exc}"
             )
             return False
-
+    
     def _confirm_instance_uploaded(
         self,
         sop_instance_uid: str,
@@ -223,13 +223,67 @@ class PacsUploader:
             time.sleep(delay)
         return False
 
+    def add_label(self, study_uid: str, label: str) -> bool:
+        """
+        Add a label to a study in PACS.
+
+        Parameters
+        ----------
+        study_uid : str
+            The Study Instance UID to label.
+        label : str
+            The label text to add.
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise.
+        """
+        if not study_uid or not label:
+            self._post_ui_log(f"Invalid study_uid or label for PACS labeling")
+            return False
+
+        token = self._get_token()
+        payload = {"label": label}
+        try:
+            resp = self.session.post(
+                f"{self.base_url}/studies/{study_uid}/label",
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=self.timeout,
+            )
+            self._post_ui_log(f"study_uid: {study_uid}")
+            if resp.status_code == 401:
+                self._token = _TokenState()
+                token = self._get_token()
+                resp = self.session.post(
+                    f"{self.base_url}/studies/{study_uid}/label",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=self.timeout,
+                )
+            try:
+                resp.raise_for_status()
+            except requests.HTTPError as exc:
+                body = (resp.text or "").strip()
+                body = body[:2000] if body else "<empty>"
+                self._post_ui_log(
+                    f"PACS label add failed for study {study_uid}: {resp.status_code} {body}"
+                )
+                return False
+            self._post_ui_log(f"PACS label added for study {study_uid}: {label}")
+            return True
+        except Exception as exc:
+            self._post_ui_log(f"PACS label add error for study {study_uid}: {exc}")
+            return False
+
     def upload_folder_async(self, folder: Path, case_name: str = "") -> dict:
         if not folder.exists():
             return {"started": False, "reason": "missing-folder"}
 
-        marker_path = folder / ".pacs_uploaded"
-        if marker_path.exists():
-            return {"started": False, "reason": "already-uploaded"}
+        # marker_path = folder / ".pacs_uploaded"
+        # if marker_path.exists():
+        #     return {"started": False, "reason": "already-uploaded"}
 
         lock_path = folder / ".pacs_uploading"
         progress_path = folder / ".pacs_progress"
@@ -244,7 +298,8 @@ class PacsUploader:
                     percent_value = int(percent)
                 except Exception:
                     percent_value = None
-            if percent_value == 100 and not marker_path.exists():
+            # if percent_value == 100 and not marker_path.exists():
+            if percent_value == 100:
                 try:
                     stale = (time.time() - lock_path.stat().st_mtime) > 900
                 except Exception:
@@ -288,7 +343,7 @@ class PacsUploader:
     def _upload_folder_worker(self, folder: Path, case_name: str) -> None:
         lock_path = folder / ".pacs_uploading"
         progress_path = folder / ".pacs_progress"
-        marker_path = folder / ".pacs_uploaded"
+        # marker_path = folder / ".pacs_uploaded"
         temp_folder = folder / "temp"
         try:
             temp_folder.mkdir(parents=True, exist_ok=True)
@@ -392,13 +447,13 @@ class PacsUploader:
                 progress_path.write_text("100", encoding="utf-8")
             except Exception:
                 pass
-            try:
-                marker_path.write_text(
-                    time.strftime("%Y-%m-%d %H:%M:%S"),
-                    encoding="utf-8",
-                )
-            except Exception:
-                pass
+            # try:
+            #     marker_path.write_text(
+            #         time.strftime("%Y-%m-%d %H:%M:%S"),
+            #         encoding="utf-8",
+            #     )
+            # except Exception:
+            #     pass
             self._post_ui_log(f"PACS upload completed{label}: {uploaded} file(s)")
 
         try:
