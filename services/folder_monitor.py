@@ -31,6 +31,8 @@ class FolderMonitor:
     staging_path: Path
     # Format for the monitored folder name (default: dd-mm-YYYY).
     date_format: str = "%d-%m-%Y"
+    # Institution name for the monitor.
+    institution_name: str = ""
 
     def _get_logger(self) -> logging.Logger:
         logger = logging.getLogger("ServiceLog")
@@ -69,6 +71,7 @@ class FolderMonitor:
         return cls(
             root_path=Path(service_config.SERVICE_ROOT_PATH),
             staging_path=Path(service_config.SERVICE_STAGING_PATH),
+            institution_name=service_config.INSTITUTION_NAME,
         )
     
     @classmethod
@@ -77,6 +80,7 @@ class FolderMonitor:
         return cls(
             root_path=Path(service_config.SERVICE_ROOT_PATH),
             staging_path=Path(service_config.SERVICE_STAGING_PATH),
+            institution_name=service_config.INSTITUTION_NAME,
         )
 
     def ensure_today_folder(self) -> Path:
@@ -102,6 +106,7 @@ class FolderMonitor:
 
     def _extract_study_info(self, ds) -> dict:
         return {
+            "sop_uid": getattr(ds.file_meta, "MediaStorageSOPInstanceUID", None),
             "study_uid": getattr(ds, "StudyInstanceUID", None),
             "patient_name": getattr(ds, "PatientName", ""),
             "patient_id": getattr(ds, "PatientID", ""),
@@ -122,11 +127,12 @@ class FolderMonitor:
         meta.ImplementationClassUID = PYDICOM_IMPLEMENTATION_UID
         return meta
 
-    def _create_pdf_dicom(self, pdf_path: Path, out_path: Path, study_info: dict, case_name: str = ""):
+    def _create_pdf_dicom(self, pdf_path: Path, out_path: Path, study_info: dict, case_name: str = "", labels: list[str] = []):
+        labels = []
         with pdf_path.open("rb") as f:
             pdf_bytes = f.read()
 
-        sop_instance_uid = generate_uid()
+        sop_instance_uid = study_info.get("sop_uid") or generate_uid()
         file_meta = self._build_file_meta(EncapsulatedPDFStorage, sop_instance_uid)
         ds = FileDataset(str(out_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
         ds.is_little_endian = True
@@ -136,8 +142,10 @@ class FolderMonitor:
         ds.SOPClassUID = EncapsulatedPDFStorage
         ds.SOPInstanceUID = sop_instance_uid
         ds.StudyInstanceUID = study_info.get("study_uid") or generate_uid()
+        
         ds.SeriesInstanceUID = generate_uid()
         ds.Modality = "DOC"
+        ds.InstitutionName = self.institution_name
         ds.SeriesNumber = 1
         ds.InstanceNumber = 1
         ds.ContentDate = now.strftime("%Y%m%d")
@@ -169,7 +177,7 @@ class FolderMonitor:
         pixel_bytes = image.tobytes()
         rows, cols = image.size[1], image.size[0]
 
-        sop_instance_uid = generate_uid()
+        sop_instance_uid = study_info.get("sop_uid") or generate_uid()
         file_meta = self._build_file_meta(SecondaryCaptureImageStorage, sop_instance_uid)
         ds = FileDataset(str(out_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
         ds.is_little_endian = True
@@ -185,6 +193,7 @@ class FolderMonitor:
         ds.InstanceNumber = 1
         ds.ContentDate = now.strftime("%Y%m%d")
         ds.ContentTime = now.strftime("%H%M%S")
+        ds.InstitutionName = self.institution_name
 
         patient_name = study_info.get("patient_name", None)
         ds.PatientName = patient_name if patient_name else case_name
@@ -273,6 +282,7 @@ class FolderMonitor:
         try:
             multi_ds.NumberOfFrames = pixel_stack.shape[0]
             multi_ds.PixelData = pixel_stack.tobytes()
+            multi_ds.InstitutionName = self.institution_name
         except Exception as e:
             self._post_ui_log(f"Failed to set multi-frame attributes: {e}", source="FolderMonitor")
             raise
@@ -307,7 +317,9 @@ class FolderMonitor:
         suffix = dt.strftime("%p").lower()
         return f"{hour}:{minute}{suffix}"
 
-    def _upload_pacs_folder(self, orthanc_folder: Path, case_name: str):
+    def _upload_pacs_folder(self, orthanc_folder: Path, case_name: str, labels: list[str] = None):
+        if labels is None:
+            labels = []
         try:
             from pacs_uploader import PacsUploader
             uploader = PacsUploader.from_config()
@@ -318,20 +330,20 @@ class FolderMonitor:
             )
             return
 
-        uploader.upload_folder_async(orthanc_folder, case_name)
+        uploader.upload_folder_async(orthanc_folder, case_name, labels=labels)
 
-    def _add_case_label(self, study_uid: str, case_name: str):
+    def _add_case_label(self, study_uid: str, label: str):
         try:
             from pacs_uploader import PacsUploader
             uploader = PacsUploader.from_config()
         except Exception as exc:
             self._post_ui_log(
-                f"PACS label skipped for {case_name}: {exc}",
+                f"PACS label skipped for {study_uid}: {exc}",
                 source="FolderMonitor",
             )
             return
 
-        uploader.add_label(study_uid, case_name)
+        uploader.add_label(study_uid, label)
 
     def find_cases(self):
         """
@@ -350,12 +362,14 @@ class FolderMonitor:
         cases = []
         for case in today_folder.iterdir():
             if not case.is_dir(): # if not a folder, skip
+                # self._post_ui_log(f"Skipping non-folder item in today's folder: {case.name}", source="FolderMonitor")
                 continue
             
             # if folder name is in excluded names, skip
             folder_name = case.name.strip()
             folder_name_lower = folder_name.lower()
             if folder_name_lower in EXCLUDED_NAMES or " " not in folder_name:
+                # self._post_ui_log(f"Skipping folder with excluded name or no space: {case.name}", source="FolderMonitor")   
                 continue
             
             # if folder is empty, skip
@@ -365,6 +379,7 @@ class FolderMonitor:
                 has_contents = False
                 
             if not has_contents:
+                # self._post_ui_log(f"Skipping empty folder in today's folder: {case.name}", source="FolderMonitor")
                 continue
 
             # date and last modified time
@@ -372,7 +387,9 @@ class FolderMonitor:
                 stat = case.stat()
                 case_date = self._format_case_date(stat.st_ctime)
                 case_time = self._format_case_time(stat.st_mtime)
+                # self._post_ui_log(f"Found case folder: {case.name} - Date: {case_date} - Time: {case_time}", source="FolderMonitor")
             except Exception:
+                self._post_ui_log(f"Found case folder: {case.name} - Date/Time info unavailable", source="FolderMonitor")
                 case_date = case_time = ""
 
             # if case has pdf or image files
@@ -397,7 +414,7 @@ class FolderMonitor:
                         if item.is_dir(): # skip viewers entirely
                             if item.name.lower() in IGNORED_SUBFOLDERS:
                                 continue
-                            stack.append(item)
+                            stack.append(item)  
                             continue
 
                         if not item.is_file(): # process files
@@ -453,22 +470,36 @@ class FolderMonitor:
             multi_series = {}
             
             try: # trying to check dicoms
-                stack = [case]
+                stack = [(case, None)]  # Stack now contains tuples of (path, relative_path_from_case)
                 while stack:
-                    current = stack.pop()
-                    for item in current.iterdir(): # if folder, add to stack            
+                    current, rel_path = stack.pop()
+                    for item in current.iterdir():   
+                        # self._post_ui_log(f"Checking item in case {case.name}: {item.name}", source="FolderMonitor")                      
                         if item.is_dir():
-                            stack.append(item)
+                            new_rel_path = f"{rel_path}/{item.name}" if rel_path else item.name
+                            stack.append((item, new_rel_path))
+                            # self._post_ui_log(f"Found subfolder in case {case.name}: {item.name}", source="FolderMonitor")
                             continue
+                            # self._post_ui_log(f"Found subfolder in case {case.name}: {item.name}", source="FolderMonitor")
+                            # if "ondemand" not in item.name.lower():
+                            #     self._post_ui_log(f" NOT Adding subfolder to stack for case {case.name}: {item.name}", source="FolderMonitor")
+                            #     continue
+                            # else:
+                            #     self._post_ui_log(f" Adding subfolder to stack for case {case.name}: {item.name}", source="FolderMonitor")
+                            #     stack.append((item, new_rel_path))
+                            #     continue
                         
                         if not item.is_file(): # if not file, skip
+                            self._post_ui_log(f"Skipping non-file item in case {case.name}: {item.name}", source="FolderMonitor")
                             continue
                         
                         if not is_dicom(item): 
+                            # self._post_ui_log(f"Skipping non-DICOM file in case {case.name}: {item.name}", source="FolderMonitor")  
                             continue
                         
                         try: # trying to read dicom
                             ds = pydicom.dcmread(item, stop_before_pixels=True, force=True)
+                            # self._post_ui_log(f"Read DICOM file in case {case.name}: {item.name}", source="FolderMonitor")
                             # if dicom has romexis tag
                             impl_version = getattr(getattr(ds, "file_meta", None), "ImplementationVersionName", "")
                             if romexis == False:
@@ -479,6 +510,7 @@ class FolderMonitor:
                             continue
 
                         if study_info is None:
+                            # self._post_ui_log(f"Extracting study info from DICOM file in case {case.name}: {item.name}", source="FolderMonitor")
                             study_info = self._extract_study_info(ds)
 
                         sop_uid = getattr(ds, "SOPInstanceUID", None)
@@ -490,27 +522,39 @@ class FolderMonitor:
                         # if item is a project or single dicom
                         number_of_frames = getattr(ds, "NumberOfFrames", None)
                         modality = getattr(ds, "Modality", None)
-                        if number_of_frames is not None:
-                            if int(number_of_frames) > 1:
-                                # item is single dicom
-                                has_single_dicom = True
-                                single_dicom_count += 1
-                                single_dicom_files.append(item)
-                            else:
-                                # item is a project (multi-frame)
-                                has_project = True
-                                project_files.append(item)
-                                project_count += 1
+                        is_from_ondemand = rel_path and "ondemand 3d" in rel_path.lower()
+                        
+                        # is_from_ondemand = rel_path and "ondemand 3d" in rel_path.lower()
+                        # Rule: Only append DICOMs with modality 'CT' from OnDemand 3D folder
+                        # if parent_folder and parent_folder.lower() == "ondemand 3d":
+                        #     if modality and modality.upper() != "CT":
+                        #         continue
+                        
+                        if number_of_frames is not None: # number_of_frames exist
+                            if int(number_of_frames) > 1:  # item is single dicom with multiple frames
+                                if modality and modality.upper() == "CT" and is_from_ondemand:
+                                    has_single_dicom = True
+                                    single_dicom_count += 1
+                                    single_dicom_files.append(item)
+                                else:
+                                    continue
+                            else:  # item is a project (multi-frame)
+                                if modality and modality.upper() == "CT" and is_from_ondemand:
+                                    has_project = True
+                                    project_files.append(item)
+                                    project_count += 1
+                                else:
+                                    continue
                         else:  # item is multiple dicom (multi-file series) or 2D dicom
-                            has_multiple_dicom = True
                             if modality.upper() != "CT":
                                 dicom_2d_files.append(item)
                             else:
+                                has_multiple_dicom = True
                                 series_uid = getattr(ds, "SeriesInstanceUID", None)
                                 if not series_uid:
                                     series_uid = f"unknown-{case.name}"
                                 multi_series.setdefault(series_uid, []).append(item)
-
+                                
                         dicom_files.append(item)
 
                         try: # trying to copy dicom to staging dicom folder
@@ -537,7 +581,7 @@ class FolderMonitor:
                 has_multiple_dicom = False
                 has_project = False
                 romexis = False
-            
+
 
             # getting counts
             has_pdf = pdf_count > 0
@@ -553,19 +597,27 @@ class FolderMonitor:
             orthanc_folder.mkdir(parents=True, exist_ok=True)
 
             # orthanc stagging logic:
+            case_labels = []
+
             if has_single_dicom and romexis: # if single dicom(s) and romexis -> copy as is
+                case_labels.append("3D-DICOM")
                 for dicom_path in single_dicom_files:
                     try:
                         out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
                         out_path = orthanc_folder / out_name
                         if out_path.exists():
                             continue
+                        ds = pydicom.dcmread(dicom_path, stop_before_pixels=True, force=True)
+                        if not getattr(ds, "file_meta", None):
+                            ds.file_meta = FileMetaDataset()
+                        ds.InstitutionName = self.institution_name
                         shutil.copy2(dicom_path, out_path)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to copy {dicom_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
                         pass
                     
             elif has_single_dicom and not romexis: # if single and ! romexis -> fix and copy
+                case_labels.append("3D-DICOM")
                 for dicom_path in single_dicom_files:
                     try:
                         out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
@@ -576,12 +628,14 @@ class FolderMonitor:
                         if not getattr(ds, "file_meta", None):
                             ds.file_meta = FileMetaDataset()
                         ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
+                        ds.InstitutionName = self.institution_name
                         ds.save_as(out_path, write_like_original=False)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to update Implementation and copy {dicom_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
                         pass
 
             elif (not has_single_dicom) and (not romexis) and multi_dicom_files:  # if multiple and ! romexis -> convert and copy
+                case_labels.append("3D-DICOM")
                 ds = pydicom.dcmread(multi_dicom_files[0], stop_before_pixels=True, force=True)
                 if ds.Modality.upper() == "CT": # cheking if it's CBCT or 2D dicom
                     try:
@@ -599,24 +653,34 @@ class FolderMonitor:
                             f"Error while converting multi-file DICOM(s) for case {case.name}: {exc}", source="FolderMonitor")
 
             if has_project: # if project -> copy as is
+                case_labels.append("OD3D")
                 for project_path in project_files:
                     try:
                         out_name = f"{project_path.stem} DCM {project_path.suffix or '.dcm'}"
                         out_path = orthanc_folder / out_name
                         if out_path.exists():
                             continue
+                        ds = pydicom.dcmread(project_path, stop_before_pixels=True, force=True)
+                        if not getattr(ds, "file_meta", None):  
+                            ds.file_meta = FileMetaDataset()
+                        ds.InstitutionName = self.institution_name
                         shutil.copy2(project_path, out_path)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to copy {project_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
                         pass
 
             elif dicom_2d_files: # if 2D dicom copy as is 
+                case_labels.append("2D-DICOM")
                 for dicom_path in dicom_2d_files:
                     try:
                         out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
                         out_path = orthanc_folder / out_name
                         if out_path.exists():
                             continue
+                        ds = pydicom.dcmread(dicom_path, stop_before_pixels=True, force=True)
+                        if not getattr(ds, "file_meta", None):  
+                            ds.file_meta = FileMetaDataset()
+                        ds.InstitutionName = self.institution_name
                         shutil.copy2(dicom_path, out_path)
                     except Exception as exc:
                         self._post_ui_log(f"Failed to copy image DICOM {dicom_path.name} to Orthanc staging for case {case.name}: {exc}", source="FolderMonitor")
@@ -637,6 +701,7 @@ class FolderMonitor:
                         if out_path.exists():
                             continue
                         self._create_pdf_dicom(pdf_path, out_path, study_info, case.name)
+                        case_labels.append("PDF")
                     except Exception as exc:
                         self._post_ui_log(f"Failed to create PDF DICOM for {pdf_path.name}: {exc}", source="FolderMonitor")
                         pass
@@ -647,17 +712,14 @@ class FolderMonitor:
                         if out_path.exists():
                             continue
                         self._create_image_dicom(image_path, out_path, study_info, case.name)
+                        case_labels.append("Image")
                     except Exception as exc:
                         self._post_ui_log(f"Failed to create image DICOM for {image_path.name}: {exc}", source="FolderMonitor")
                         pass
             
-            # Add label to PACS study
-            if study_info and study_info.get("study_uid"):
-                self._add_case_label(study_info.get("study_uid"), "Label Test 01")
-            
+
             # Upload to PACS
-            self._upload_pacs_folder(orthanc_folder, case.name)
-            # self._upload_pacs_folder(orthanc_folder, case.name)
+            self._upload_pacs_folder(orthanc_folder, case.name, labels=case_labels)
 
             cases.append({
                 "name": case.name, 

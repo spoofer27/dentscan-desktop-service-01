@@ -35,12 +35,15 @@ def _init_logger():
 
 logger = _init_logger()
 
-def _post_ui_log(message: str, source: str = "ServiceLog"):
+def _post_ui_log(message: str, source: str = "ServiceLog", color: str | None = None):
     host = getattr(service_config, "SERVICE_API_HOST", "127.0.0.1")
     port = int(getattr(service_config, "SERVICE_API_PORT", 8085))
     url = f"http://{host}:{port}/api/ui-log"
     try:
-        data = json.dumps({"message": message, "source": source}).encode("utf-8")
+        payload = {"message": message, "source": source}
+        if color:
+            payload["color"] = color
+        data = json.dumps(payload).encode("utf-8")
         req = request.Request(url, data=data, method="POST")
         req.add_header("Content-Type", "application/json; charset=utf-8")
         with request.urlopen(req, timeout=0.5) as resp:
@@ -63,7 +66,7 @@ def main(stop_event=None):
         staging_folder_path = staging_monitor.ensure_today_staging_folder()
     except Exception as exc:
         logger.warning("FolderMonitor failed to start: %s", exc)
-        _post_ui_log(f"FolderMonitor failed to start: {exc}", source="ServiceLog")
+        _post_ui_log(f"FolderMonitor failed to start: {exc}", source="ServiceLog", color="red")
     while True:
         # Run folder monitor every 5 seconds
         if monitor is not None:
@@ -98,7 +101,7 @@ def main(stop_event=None):
 
             except Exception as exc:
                 logger.warning("FolderMonitor check failed: %s", exc)
-                _post_ui_log(f"FolderMonitor check failed: {exc}", source="ServiceLog")
+                _post_ui_log(f"FolderMonitor check failed: {exc}", source="ServiceLog", color="red")
 
         logger.info(log_message)
         _post_ui_log(log_message, source="ServiceLog")

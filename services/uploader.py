@@ -30,12 +30,15 @@ class OrthancUploader:
         password = getattr(service_config, "ORTHANC_PASSWORD", "")
         return cls(url, username or None, password or None)
 
-    def _post_ui_log(self, message: str, source: str = "OrthancUploader"):
+    def _post_ui_log(self, message: str, source: str = "OrthancUploader", color: str | None = None):
         host = getattr(service_config, "SERVICE_API_HOST", "127.0.0.1")
         port = int(getattr(service_config, "SERVICE_API_PORT", 8085))
         url = f"http://{host}:{port}/api/ui-log"
         try:
-            data = json.dumps({"message": message, "source": source}).encode("utf-8")
+            payload = {"message": message, "source": source}
+            if color:
+                payload["color"] = color
+            data = json.dumps(payload).encode("utf-8")
             req = request.Request(url, data=data, method="POST")
             req.add_header("Content-Type", "application/json; charset=utf-8")
             with request.urlopen(req, timeout=0.5) as resp:
@@ -55,7 +58,7 @@ class OrthancUploader:
             resp.raise_for_status()
             return resp.json()
         except Exception as exc:
-            self._post_ui_log(f"Orthanc system_info failed: {exc}")
+            self._post_ui_log(f"Orthanc system_info failed: {exc}", color="red")
             raise
 
     def upload_file(self, path: Path) -> dict:
@@ -72,7 +75,7 @@ class OrthancUploader:
             resp.raise_for_status()
             return resp.json()
         except Exception as exc:
-            self._post_ui_log(f"Orthanc upload failed for {path}: {exc}")
+            self._post_ui_log(f"Orthanc upload failed for {path}: {exc}", color="red")
             raise
 
     def upload_folder(self, folder: Path) -> dict:
@@ -95,7 +98,8 @@ class OrthancUploader:
 
         if failures:
             self._post_ui_log(
-                f"Orthanc upload completed with {len(failures)} failure(s) out of {len(files)}"
+                f"Orthanc upload completed with {len(failures)} failure(s) out of {len(files)}",
+                color="red"
             )
         elif files:
             self._post_ui_log(f"Orthanc upload completed: {uploaded} file(s)")

@@ -347,6 +347,14 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.config_institution_name = QtWidgets.QLineEdit(service_config.INSTITUTION_NAME)
         form.addRow("Institution Name :", self.config_institution_name)
 
+        self.config_pacs_max_upload_kbps = QtWidgets.QSpinBox()
+        self.config_pacs_max_upload_kbps.setRange(0, 2_000_000_000)
+        self.config_pacs_max_upload_kbps.setSingleStep(100)
+        self.config_pacs_max_upload_kbps.setSuffix(" KB/s (0 = unlimited)")
+        current_kbps = getattr(service_config, "PACS_MAX_UPLOAD_BPS", None)
+        self.config_pacs_max_upload_kbps.setValue(int(current_kbps) if current_kbps else 0)
+        form.addRow("PACS Max Upload :", self.config_pacs_max_upload_kbps)
+
         container.addLayout(form)
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -470,12 +478,29 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         btn.clicked.connect(lambda: self._post_action(path))
         return btn
     
-    def _append_ui_log(self, text):
+    def _append_ui_log(self, text, color=None):
         # Prepend text so most recent is on top and cap total lines
         try:
             cursor = self.log_view.textCursor()
             cursor.movePosition(QtGui.QTextCursor.Start)
-            cursor.insertText(text + "\n")
+            
+            # If color is specified, apply it to the text block
+            if color:
+                fmt = QtGui.QTextCharFormat()
+                # Map color names to hex values
+                color_map = {
+                    "red": "#ef4444",
+                    "green": "#16a34a",
+                    "yellow": "#f59e0b",
+                    "blue": "#3b82f6",
+                    "orange": "#f59e0b",
+                }
+                hex_color = color_map.get(color.lower(), color)
+                fmt.setForeground(QtGui.QColor(hex_color))
+                cursor.insertText(text + "\n", fmt)
+            else:
+                cursor.insertText(text + "\n")
+            
             # Keep view at top to show latest
             cursor = self.log_view.textCursor()
             cursor.movePosition(QtGui.QTextCursor.Start)
@@ -545,6 +570,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         local_path = self.config_local_path.text().strip() or service_config.DEFAULT_SERVICE_ROOT_PATH
         staging_path = self.config_staging_path.text().strip() or service_config.DEFAULT_SERVICE_STAGING_PATH
         institution_name = self.config_institution_name.text().strip() or service_config.DEFAULT_INSTITUTION_NAME
+        pacs_max_upload_kbps_raw = int(self.config_pacs_max_upload_kbps.value())
+        pacs_max_upload_kbps = None if pacs_max_upload_kbps_raw <= 0 else pacs_max_upload_kbps_raw
         # _ui_log("Saving config:", "name=", name, "auto_start=", auto_start, "api=", f"{host}:{port}")
         config_path = os.path.join(os.path.dirname(__file__), "services", "service_config.py")
         try:
@@ -575,6 +602,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
             lines.append(f"SERVICE_STAGING_PATH = {staging_path!r}\n")
         if not replace_line("INSTITUTION_NAME", institution_name):
             lines.append(f"INSTITUTION_NAME = {institution_name!r}\n")
+        if not replace_line("PACS_MAX_UPLOAD_BPS", pacs_max_upload_kbps):
+            lines.append(f"PACS_MAX_UPLOAD_BPS = {pacs_max_upload_kbps!r}\n")
 
         with open(config_path, "w", encoding="utf-8") as fh:
             fh.writelines(lines)
@@ -585,6 +614,7 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         service_config.SERVICE_ROOT_PATH = local_path
         service_config.SERVICE_STAGING_PATH = staging_path
         service_config.INSTITUTION_NAME = institution_name
+        service_config.PACS_MAX_UPLOAD_BPS = pacs_max_upload_kbps
 
         self._update_api_base(host, port)
         self.message_label.setText("Configuration saved")
@@ -597,6 +627,11 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
         self.config_local_path.setText(service_config.DEFAULT_SERVICE_ROOT_PATH)
         self.config_staging_path.setText(service_config.DEFAULT_SERVICE_STAGING_PATH)
         self.config_institution_name.setText(service_config.DEFAULT_INSTITUTION_NAME)
+        self.config_pacs_max_upload_kbps.setValue(
+            int(service_config.DEFAULT_PACS_MAX_UPLOAD_BPS)
+            if service_config.DEFAULT_PACS_MAX_UPLOAD_BPS
+            else 0
+        )
         self._save_config()
 
     def _try_start_api(self):
@@ -701,7 +736,8 @@ class ServiceMonitorApp(QtWidgets.QMainWindow):
                     # Newest-first or whatever order provided
                     for entry in logs:
                         msg = entry.get("message") or ""
-                        self._append_ui_log(msg)
+                        color = entry.get("color") or None
+                        self._append_ui_log(msg, color=color)
                 else:
                     # On first poll (None), set since_id to 1 to avoid fetching all again
                     if self._api_log_since_id is None:
