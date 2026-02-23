@@ -67,6 +67,8 @@ def main(stop_event=None):
     except Exception as exc:
         logger.warning("FolderMonitor failed to start: %s", exc)
         _post_ui_log(f"FolderMonitor failed to start: {exc}", source="ServiceLog", color="red")
+    
+    yesterday_check_counter = 0
     while True:
         # Run folder monitor every 5 seconds
         if monitor is not None:
@@ -98,6 +100,22 @@ def main(stop_event=None):
                     case_project_count = case.get("project_count", 0)
                     case_romexis = case.get("romexis", False)
                     _post_ui_log(f"         {idx}- {name} - {case_date} - {case_time} - PDFs: {case_pdf_count} - IMGs: {case_image_count} - DICOMs: {case_single_dicom_count} - M-DICOMs: {case_multiple_dicom_count} - Projs: {case_project_count} - Rmx: {case_romexis}", source="FolderMonitor")
+                
+                # Check yesterday's cases every 30 seconds (every 6 iterations)
+                yesterday_check_counter += 1
+                if yesterday_check_counter >= 6:
+                    yesterday_check_counter = 0
+                    try:
+                        yesterday_count, yesterday_cases = monitor.find_yesterday_cases()
+                        if yesterday_count > 0:
+                            _post_ui_log(f"Yesterday recovery: processed {yesterday_count} case(s)", source="FolderMonitor")
+                            for case_info in yesterday_cases:
+                                name = case_info.get("name", "")
+                                action = case_info.get("action", "")
+                                _post_ui_log(f"         - {name}: {action}", source="FolderMonitor")
+                    except Exception as exc:
+                        logger.warning("Yesterday processing failed: %s", exc)
+                        _post_ui_log(f"Yesterday processing failed: {exc}", source="ServiceLog", color="red")
 
             except Exception as exc:
                 logger.warning("FolderMonitor check failed: %s", exc)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import shutil
 import pydicom
@@ -103,6 +103,21 @@ class FolderMonitor:
         today_staging_folder.mkdir(parents=True, exist_ok=True)
 
         return today_staging_folder
+
+    def ensure_yesterday_folder(self) -> Path:
+        yesterday = datetime.now() - timedelta(days=1)
+        yesterday_folder_name = yesterday.strftime(self.date_format)
+        yesterday_folder = self.root_path / yesterday_folder_name
+        return yesterday_folder
+
+    def ensure_yesterday_staging_folder(self) -> Path:
+        yesterday = datetime.now() - timedelta(days=1)
+        staging_root = self.staging_path / "Staging"
+        year_staging_folder = staging_root / yesterday.strftime("%Y")
+        month_staging_folder = year_staging_folder / yesterday.strftime("%m-%Y")
+        yesterday_staging_folder = month_staging_folder / yesterday.strftime("%d-%m-%Y")
+        yesterday_staging_folder.mkdir(parents=True, exist_ok=True)
+        return yesterday_staging_folder
 
     def _extract_study_info(self, ds) -> dict:
         return {
@@ -331,6 +346,42 @@ class FolderMonitor:
             return
 
         uploader.upload_folder_async(orthanc_folder, case_name, labels=labels)
+
+    def _is_case_staged(self, case_name: str, staging_folder: Path) -> bool:
+        case_staging_folder = staging_folder / case_name
+        orthanc_folder = case_staging_folder / "Orthanc"
+        if not orthanc_folder.exists():
+            return False
+        try:
+            return any(orthanc_folder.iterdir())
+        except Exception:
+            return False
+
+    def _is_case_uploaded_to_pacs(self, orthanc_folder: Path) -> bool:
+        if not orthanc_folder.exists():
+            return False
+        try:
+            from pacs_uploader import PacsUploader
+            uploader = PacsUploader.from_config()
+        except Exception:
+            return False
+
+        try:
+            for dicom_path in orthanc_folder.rglob("*.dcm"):
+                if dicom_path.name.startswith("."):
+                    continue
+                try:
+                    ds = pydicom.dcmread(dicom_path, stop_before_pixels=True)
+                    sop_uid = getattr(ds, "SOPInstanceUID", None)
+                    series_uid = getattr(ds, "SeriesInstanceUID", None)
+                    if sop_uid and series_uid:
+                        if uploader._instance_exists_by_uid(sop_uid, series_uid):
+                            return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return False
 
     def _add_case_label(self, study_uid: str, label: str):
         try:
@@ -739,3 +790,294 @@ class FolderMonitor:
                 })
 
         return len(cases), cases
+
+    def find_yesterday_cases(self):
+        """
+        Process yesterday's cases: check if they are staged and uploaded to PACS.
+        If not staged -> stage them.
+        If staged but not uploaded -> upload them.
+        Returns (processed_count, cases_list).
+        """
+        yesterday_folder = self.ensure_yesterday_folder()
+        yesterday_staging_folder = self.ensure_yesterday_staging_folder()
+        
+        if not yesterday_folder.exists():
+            self._post_ui_log("Yesterday's folder not found, skipping yesterday processing", source="FolderMonitor")
+            return 0, []
+
+        EXCLUDED_NAMES = {"cbct", "new folder"}
+        processed_cases = []
+        
+        for case in yesterday_folder.iterdir():
+            if not case.is_dir():
+                continue
+            
+            folder_name = case.name.strip()
+            folder_name_lower = folder_name.lower()
+            if folder_name_lower in EXCLUDED_NAMES or " " not in folder_name:
+                continue
+            
+            try:
+                has_contents = any(case.iterdir())
+            except Exception:
+                has_contents = False
+                
+            if not has_contents:
+                continue
+
+            case_staging_folder = yesterday_staging_folder / case.name
+            orthanc_folder = case_staging_folder / "Orthanc"
+            
+            # Check if case is already staged
+            is_staged = self._is_case_staged(case.name, yesterday_staging_folder)
+            
+            # Check if case is already uploaded to PACS
+            is_uploaded = False
+            if is_staged:
+                is_uploaded = self._is_case_uploaded_to_pacs(orthanc_folder)
+            
+            # Decision logic
+            if is_uploaded:
+                # Already uploaded, skip
+                continue
+            elif is_staged and not is_uploaded:
+                # Staged but not uploaded -> upload
+                self._post_ui_log(f"Yesterday case '{case.name}' is staged but not uploaded. Uploading now...", source="FolderMonitor")
+                self._upload_pacs_folder(orthanc_folder, case.name, labels=["Yesterday-Recovery"])
+                processed_cases.append({"name": case.name, "action": "uploaded"})
+            else:
+                # Not staged -> stage and upload (reuse find_cases logic for this specific case)
+                self._post_ui_log(f"Yesterday case '{case.name}' not staged. Processing and uploading...", source="FolderMonitor")
+                
+                # Process this case using the same logic as find_cases
+                # This is a simplified approach - we call the staging/upload logic
+                try:
+                    self._process_single_case(case, yesterday_staging_folder)
+                    processed_cases.append({"name": case.name, "action": "staged-and-uploaded"})
+                except Exception as exc:
+                    self._post_ui_log(f"Failed to process yesterday case '{case.name}': {exc}", source="FolderMonitor")
+                    processed_cases.append({"name": case.name, "action": "failed"})
+        
+        if processed_cases:
+            self._post_ui_log(f"Yesterday processing: {len(processed_cases)} case(s) processed", source="FolderMonitor")
+        
+        return len(processed_cases), processed_cases
+
+    def _process_single_case(self, case: Path, staging_folder: Path):
+        """
+        Process a single case: stage it and upload to PACS.
+        This method contains the core staging logic extracted from find_cases.
+        """
+        case_staging_folder = staging_folder / case.name
+        attachments_folder = case_staging_folder / "Attachments"
+        dicoms_folder = case_staging_folder / "Dicoms"
+        orthanc_folder = case_staging_folder / "Orthanc"
+        
+        attachments_folder.mkdir(parents=True, exist_ok=True)
+        dicoms_folder.mkdir(parents=True, exist_ok=True)
+        orthanc_folder.mkdir(parents=True, exist_ok=True)
+
+        # Scan for PDFs, images, DICOMs (same as find_cases)
+        IGNORED_SUBFOLDERS = {"planmeca romexis", "ondemand 3d"}
+        PDF_EXTS = {".pdf"}
+        IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+        
+        pdf_files = []
+        image_files = []
+        dicom_2d_files = []
+        single_dicom_files = []
+        project_files = []
+        multi_series = {}
+        study_info = None
+        sop_uids = set()
+        romexis = False
+        
+        # Scan for PDFs and images (skip IGNORED_SUBFOLDERS)
+        try:
+            stack = [case]
+            while stack:
+                current = stack.pop()
+                for item in current.iterdir():
+                    if item.is_dir():
+                        if item.name.lower() in IGNORED_SUBFOLDERS:
+                            continue
+                        stack.append(item)
+                        continue
+                    
+                    if not item.is_file():
+                        continue
+                    
+                    ext = item.suffix.lower()
+                    if ext in PDF_EXTS:
+                        pdf_files.append(item)
+                        try:
+                            dest_path = attachments_folder / item.name
+                            if not dest_path.exists():
+                                shutil.copy2(item, dest_path)
+                        except Exception:
+                            pass
+                    elif ext in IMAGE_EXTS:
+                        image_files.append(item)
+                        try:
+                            dest_path = attachments_folder / item.name
+                            if not dest_path.exists():
+                                shutil.copy2(item, dest_path)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        
+        # Scan for DICOMs (scan all folders including IGNORED_SUBFOLDERS)
+        stack = [(case, None)]
+        while stack:
+            current, rel_path = stack.pop()
+            for item in current.iterdir():
+                if item.is_dir() and 'ondemand' in item.name.lower():
+                    new_rel_path = f"{rel_path}/{item.name}" if rel_path else item.name
+                    stack.append((item, new_rel_path))
+                    continue
+                
+                if not item.is_file():
+                    continue
+                
+                # Handle DICOMs
+                if is_dicom(item):
+                    try:
+                        ds = pydicom.dcmread(item, stop_before_pixels=True, force=True)
+                        
+                        if study_info is None:
+                            study_info = self._extract_study_info(ds)
+                        
+                        sop_uid = getattr(ds, "SOPInstanceUID", None)
+                        if sop_uid and sop_uid not in sop_uids:
+                            sop_uids.add(sop_uid)
+                        else:
+                            continue
+                        
+                        impl_version = getattr(getattr(ds, "file_meta", None), "ImplementationVersionName", "")
+                        if not romexis and "ROMEXIS" in str(impl_version).upper():
+                            romexis = True
+                        
+                        number_of_frames = getattr(ds, "NumberOfFrames", None)
+                        modality = getattr(ds, "Modality", None)
+                        is_from_ondemand = rel_path and "ondemand 3d" in rel_path.lower()
+                        
+                        if number_of_frames is not None:
+                            if int(number_of_frames) > 1:
+                                if modality and modality.upper() == "CT" and is_from_ondemand:
+                                    single_dicom_files.append(item)
+                            else:
+                                if modality and modality.upper() == "CT" and is_from_ondemand:
+                                    project_files.append(item)
+                        else:
+                            if modality and modality.upper() != "CT":
+                                dicom_2d_files.append(item)
+                            else:
+                                series_uid = getattr(ds, "SeriesInstanceUID", None)
+                                if not series_uid:
+                                    series_uid = f"unknown-{case.name}"
+                                multi_series.setdefault(series_uid, []).append(item)
+                        
+                        # Copy to dicoms folder
+                        try:
+                            dest_path = dicoms_folder / item.name
+                            if not dest_path.exists():
+                                shutil.copy2(item, dest_path)
+                        except Exception:
+                            pass
+                            
+                    except Exception:
+                        pass
+        
+        # Stage DICOMs to Orthanc folder
+        case_labels = []
+        
+        # Handle single DICOMs
+        if single_dicom_files:
+            case_labels.append("3D-DICOM")
+            for dicom_path in single_dicom_files:
+                try:
+                    out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
+                    out_path = orthanc_folder / out_name
+                    if out_path.exists():
+                        continue
+                    
+                    if romexis:
+                        shutil.copy2(dicom_path, out_path)
+                    else:
+                        ds = pydicom.dcmread(dicom_path)
+                        if not getattr(ds, "file_meta", None):
+                            ds.file_meta = FileMetaDataset()
+                        ds.file_meta.ImplementationVersionName = "ROMEXIS_10"
+                        ds.InstitutionName = self.institution_name
+                        ds.save_as(out_path, write_like_original=False)
+                except Exception:
+                    pass
+        
+        # Handle multi-file series
+        elif multi_series:
+            case_labels.append("3D-DICOM")
+            multi_dicom_files = max(multi_series.values(), key=len)
+            if multi_dicom_files:
+                try:
+                    out_name = f"{case.name} DCM.dcm"
+                    out_path = orthanc_folder / out_name
+                    if not out_path.exists():
+                        self._convert_multi_file_to_multiframe(multi_dicom_files, out_path)
+                except Exception:
+                    pass
+        
+        # Handle projects
+        if project_files:
+            case_labels.append("OD3D")
+            for project_path in project_files:
+                try:
+                    out_name = f"{project_path.stem} DCM {project_path.suffix or '.dcm'}"
+                    out_path = orthanc_folder / out_name
+                    if out_path.exists():
+                        continue
+                    shutil.copy2(project_path, out_path)
+                except Exception:
+                    pass
+        
+        # Handle 2D DICOMs
+        if dicom_2d_files:
+            case_labels.append("2D-DICOM")
+            for dicom_path in dicom_2d_files:
+                try:
+                    out_name = f"{dicom_path.stem} DCM {dicom_path.suffix or '.dcm'}"
+                    out_path = orthanc_folder / out_name
+                    if out_path.exists():
+                        continue
+                    shutil.copy2(dicom_path, out_path)
+                except Exception:
+                    pass
+        
+        # Handle PDFs and images
+        if pdf_files or image_files:
+            if study_info is None:
+                study_info = {"study_uid": generate_uid()}
+            elif not study_info.get("study_uid"):
+                study_info["study_uid"] = generate_uid()
+            
+            for pdf_path in pdf_files:
+                try:
+                    out_path = orthanc_folder / f"{pdf_path.stem} PDF.dcm"
+                    if not out_path.exists():
+                        self._create_pdf_dicom(pdf_path, out_path, study_info, case.name)
+                        case_labels.append("PDF")
+                except Exception:
+                    pass
+            
+            for image_path in image_files:
+                try:
+                    out_path = orthanc_folder / f"{image_path.stem} IMG.dcm"
+                    if not out_path.exists():
+                        self._create_image_dicom(image_path, out_path, study_info, case.name)
+                        case_labels.append("Image")
+                except Exception:
+                    pass
+        
+        # Upload to PACS
+        case_labels.append("Yesterday-Recovery")
+        self._upload_pacs_folder(orthanc_folder, case.name, labels=case_labels)
